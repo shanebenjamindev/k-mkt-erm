@@ -20,6 +20,7 @@ type CalendarEvent = {
   startDate: string;
   endDate: string;
   startTime: string;
+  endTime: string;
   status: TaskStatus;
   assigneeId: string | null;
   owner: string;
@@ -78,7 +79,7 @@ function TimeGridView({ days, events, onSelect }: { days: string[]; events: Cale
       {days.map((date, index) => <div className={isToday(date) ? "schedule-day-guide today" : "schedule-day-guide"} style={{ gridColumn: index + 1 }} key={date} />)}
       {placed.map(({ event, row, startColumn, endColumn, lane, lanes }) => {
         const availableHeight = 102 / lanes;
-        return <button type="button" className={`schedule-task status-${event.status}`} style={{ gridRow: row + 1, gridColumn: `${startColumn + 1} / ${endColumn + 2}`, height: `${availableHeight}px`, marginTop: `${5 + lane * availableHeight}px` }} key={`${event.taskId}-${startColumn}-${endColumn}`} onClick={() => onSelect(event.task)} aria-label={`Chỉnh sửa ${event.title}`}><strong>{event.title}</strong><small>{rangeLabel(event)} · {event.startTime}</small><span>{event.owner} · {statusLabels[event.status]}</span></button>;
+        return <button type="button" className={`schedule-task status-${event.status}`} style={{ gridRow: row + 1, gridColumn: `${startColumn + 1} / ${endColumn + 2}`, height: `${availableHeight}px`, marginTop: `${5 + lane * availableHeight}px` }} key={`${event.taskId}-${startColumn}-${endColumn}`} onClick={() => onSelect(event.task)} aria-label={`Chỉnh sửa ${event.title}`}><strong>{event.title}</strong><small>{rangeLabel(event)} · {event.startTime} – {event.endTime}</small><span>{event.owner} · {statusLabels[event.status]}</span></button>;
       })}
     </div></div>
   </div></div>;
@@ -89,7 +90,7 @@ function MonthView({ date, events, onSelect }: { date: string; events: CalendarE
   const placed = useMemo(() => placeMonthEvents(events, days), [days, events]);
   return <div className="month-board"><div className="month-weekdays">{dayNames.map((day) => <span key={day}>{day}</span>)}</div><div className="month-grid">
     {days.map((day) => <button type="button" className={`${day.slice(0, 7) === date.slice(0, 7) ? "" : "outside"} ${isToday(day) ? "today" : ""}`.trim()} key={day}><b>{day.slice(8, 10)}</b></button>)}
-    <div className="month-event-layer">{placed.map(({ event, weekIndex, startColumn, endColumn, lane }) => <button type="button" className={`month-task status-${event.status}`} style={{ gridRow: weekIndex + 1, gridColumn: `${startColumn + 1} / ${endColumn + 2}`, marginTop: `${30 + lane * 29}px` }} key={`${event.taskId}-${weekIndex}-${startColumn}-${endColumn}`} onClick={() => onSelect(event.task)}><span>{event.startTime}</span><strong>{event.title}</strong></button>)}</div>
+    <div className="month-event-layer">{placed.map(({ event, weekIndex, startColumn, endColumn, lane }) => <button type="button" className={`month-task status-${event.status}`} style={{ gridRow: weekIndex + 1, gridColumn: `${startColumn + 1} / ${endColumn + 2}`, marginTop: `${30 + lane * 29}px` }} key={`${event.taskId}-${weekIndex}-${startColumn}-${endColumn}`} onClick={() => onSelect(event.task)}><span>{event.startTime}–{event.endTime}</span><strong>{event.title}</strong></button>)}</div>
   </div></div>;
 }
 
@@ -109,7 +110,7 @@ function normalizeEvents(tasks: Task[]): CalendarEvent[] {
   return tasks.flatMap((task) => {
     const startDate = taskStartDate(task);
     if (!startDate || !task.deadline) return [];
-    return [{ taskId: task.id, task, title: task.title, startDate, endDate: task.deadline, startTime: task.startTime, status: task.status, assigneeId: null, owner: task.owner }];
+    return [{ taskId: task.id, task, title: task.title, startDate, endDate: task.deadline, startTime: task.startTime, endTime: task.endTime, status: task.status, assigneeId: null, owner: task.owner }];
   });
 }
 

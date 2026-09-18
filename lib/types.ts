@@ -16,6 +16,7 @@ export type Task = {
   startDate: string | null;
   deadline: string | null;
   startTime: string;
+  endTime: string;
   format: string;
   brief: string;
   createdAt: string;
@@ -35,7 +36,7 @@ export type TeamMember = {
   createdAt: string;
 };
 
-export type TaskInput = Pick<Task, "title" | "owner" | "workType" | "status" | "startDate" | "deadline" | "startTime" | "format" | "brief">;
+export type TaskInput = Pick<Task, "title" | "owner" | "workType" | "status" | "startDate" | "deadline" | "startTime" | "endTime" | "format" | "brief">;
 export type TeamMemberInput = Pick<TeamMember, "name" | "role" | "workType" | "username" | "accessRole" | "avatarUrl"> & { password?: string };
 
 export type NotificationKind = "task_assigned" | "task_due" | "task_overdue";

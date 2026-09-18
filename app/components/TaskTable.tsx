@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { statusLabels, taskStartDate, workTypeLabels, type Task, type TaskInput } from "../../lib/types";
 import { DateRangePicker } from "./DateRangePicker";
+import { LinkifiedText } from "./LinkifiedText";
 import { useWorkspace } from "./WorkspaceProvider";
+
+const timeOptions = ["09:00", "11:00", "13:00", "15:00", "17:00", "19:00"];
 
 export function formatDate(date: string | null | undefined) {
   if (!date) return "Chưa đặt";
@@ -31,18 +34,30 @@ function taskInput(task: Task): TaskInput {
     startDate: task.startDate ?? date,
     deadline: date,
     startTime: task.startTime,
+    endTime: task.endTime,
     format: task.format,
     brief: task.brief
   };
 }
 
-export function TaskTable({ items }: { items: Task[] }) {
+export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; openTaskId?: string | null; onTaskOpened?: () => void }) {
   const { updateTask, removeTask, members } = useWorkspace();
   const [selected, setSelected] = useState<Task | null>(null);
   const [draft, setDraft] = useState<TaskInput | null>(null);
   const [inlineEditing, setInlineEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openTaskId) return;
+    const task = items.find((item) => item.id === openTaskId);
+    if (!task) return;
+    setSelected(task);
+    setInlineEditing(false);
+    setDraft(null);
+    setActionError(null);
+    onTaskOpened?.();
+  }, [items, onTaskOpened, openTaskId]);
 
   const updateDraft = <K extends keyof TaskInput>(key: K, value: TaskInput[K]) => {
     setDraft((current) => current ? { ...current, [key]: value } : current);
@@ -103,7 +118,8 @@ export function TaskTable({ items }: { items: Task[] }) {
             <div className="field full"><span>Thời gian thực hiện</span><DateRangePicker startDate={draft.startDate} endDate={draft.deadline} onChange={(startDate, deadline) => setDraft((current) => current ? { ...current, startDate, deadline } : current)} /></div>
             <label className="field">Loại<select value={draft.workType} disabled={draft.owner !== "Chưa phân công"} onChange={(event) => updateDraft("workType", event.target.value as TaskInput["workType"])}>{Object.entries(workTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="field">Trạng thái<select value={draft.status} onChange={(event) => updateDraft("status", event.target.value as TaskInput["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label className="field">Giờ bắt đầu<select value={draft.startTime} onChange={(event) => updateDraft("startTime", event.target.value)}>{["09:00", "11:00", "13:00", "15:00", "17:00"].map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+            <label className="field">Giờ bắt đầu<select value={draft.startTime} onChange={(event) => { const startTime = event.target.value; setDraft((current) => current ? { ...current, startTime, endTime: current.endTime > startTime ? current.endTime : timeOptions[timeOptions.indexOf(startTime) + 1] } : current); }}>{timeOptions.slice(0, -1).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+            <label className="field">Giờ kết thúc<select value={draft.endTime} onChange={(event) => updateDraft("endTime", event.target.value)}>{timeOptions.filter((time) => time > draft.startTime).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
             <label className="field">Định dạng<input value={draft.format} onChange={(event) => updateDraft("format", event.target.value)} /></label>
             <label className="field full">Brief nội dung<textarea rows={4} value={draft.brief} onChange={(event) => updateDraft("brief", event.target.value)} /></label>
           </div>
@@ -115,11 +131,11 @@ export function TaskTable({ items }: { items: Task[] }) {
             <span>Người phụ trách<strong>{selected.owner}</strong></span>
             <span>Loại<strong>{workTypeLabels[selected.workType]}</strong></span>
             <span>Thời gian<strong>{formatDateRange(taskStartDate(selected), selected.deadline)}</strong></span>
-            <span>Giờ bắt đầu<strong>{selected.startTime}</strong></span>
+            <span>Thời gian<strong>{selected.startTime} – {selected.endTime}</strong></span>
             <span>Định dạng<strong>{selected.format || "Chưa xác định"}</strong></span>
             <span>Trạng thái<strong>{statusLabels[selected.status]}</strong></span>
           </div>
-          <div className="brief"><b>BRIEF NỘI DUNG</b><p>{selected.brief || "Chưa có brief. Hãy bổ sung yêu cầu và thông điệp chính cho công việc này."}</p></div>
+          <div className="brief"><b>BRIEF NỘI DUNG</b><p><LinkifiedText text={selected.brief || "Chưa có brief. Hãy bổ sung yêu cầu và thông điệp chính cho công việc này."} /></p></div>
           {actionError && <p className="form-error">{actionError}</p>}
           <div className="form-actions"><button className="danger" onClick={() => void destroy()}>Xoá</button><span/><button className="secondary" onClick={() => { setDraft(taskInput(selected)); setInlineEditing(true); setActionError(null); }}>Chỉnh sửa</button><button className="primary" onClick={() => setSelected(null)}>Xong</button></div>
         </>}

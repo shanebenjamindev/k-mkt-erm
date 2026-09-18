@@ -24,7 +24,9 @@ function normalizeWorkspace(data: WorkspaceData): WorkspaceData {
     })),
     tasks: data.tasks.map((task) => {
       const { durationMinutes: _durationMinutes, ...withoutDuration } = task as Task & { durationMinutes?: unknown };
-      return { ...withoutDuration, startDate: task.startDate || task.deadline || null, startTime: task.startTime || "09:00" };
+      const startTime = task.startTime || "09:00";
+      const endTime = task.endTime || ({ "09:00": "11:00", "11:00": "13:00", "13:00": "15:00", "15:00": "17:00", "17:00": "19:00" }[startTime] ?? "19:00");
+      return { ...withoutDuration, startDate: task.startDate || task.deadline || null, startTime, endTime };
     })
   };
 }

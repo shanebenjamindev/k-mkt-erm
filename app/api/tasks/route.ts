@@ -18,8 +18,10 @@ function isTaskInput(value: unknown): value is TaskInput {
     && typeof item.deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.deadline)
     && item.startDate <= item.deadline
     && typeof item.startTime === "string"
+    && typeof item.endTime === "string"
     && WORK_TYPES.includes(item.workType as TaskInput["workType"])
-    && TASK_STATUSES.includes(item.status as TaskInput["status"]);
+    && TASK_STATUSES.includes(item.status as TaskInput["status"])
+    && item.endTime > item.startTime;
 }
 
 export async function GET(request: NextRequest) {

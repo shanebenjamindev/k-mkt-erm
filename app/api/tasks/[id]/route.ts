@@ -17,6 +17,7 @@ function validPatch(value: unknown): value is Partial<TaskInput> {
   if (item.startDate !== undefined && (typeof item.startDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.startDate))) return false;
   if (item.deadline !== undefined && (typeof item.deadline !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.deadline))) return false;
   if (item.startTime !== undefined && typeof item.startTime !== "string") return false;
+  if (item.endTime !== undefined && typeof item.endTime !== "string") return false;
   if (item.workType !== undefined && !WORK_TYPES.includes(item.workType as TaskInput["workType"])) return false;
   if (item.status !== undefined && !TASK_STATUSES.includes(item.status as TaskInput["status"])) return false;
   return true;

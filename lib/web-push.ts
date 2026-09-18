@@ -15,7 +15,7 @@ export async function sendPushNotifications(notifications: WorkspaceNotification
   webpush.setVapidDetails(subject, publicKey, privateKey);
   const subscriptions = await listPushSubscriptions(notifications.map((item) => item.userId));
   const jobs = subscriptions.flatMap((subscription) => notifications.filter((item) => item.userId === subscription.userId).map(async (notification) => {
-    const payload = JSON.stringify({ title: notification.title, body: notification.body, url: notification.taskId ? "/tasks" : "/" });
+    const payload = JSON.stringify({ title: notification.title, body: notification.body, url: notification.taskId ? `/tasks?task=${encodeURIComponent(notification.taskId)}` : "/" });
     await webpush.sendNotification({ endpoint: subscription.endpoint, keys: subscription.keys }, payload);
     return notification.id;
   }));

@@ -24,6 +24,7 @@ create table if not exists public.tasks (
   start_date date,
   deadline date,
   start_time time not null default '09:00',
+  end_time time not null default '11:00',
   format text not null default '',
   brief text not null default '',
   created_at timestamptz not null default now(),
@@ -37,6 +38,13 @@ create index if not exists tasks_status_idx on public.tasks (status);
 alter table public.tasks add column if not exists start_date date;
 update public.tasks set start_date = deadline where start_date is null and deadline is not null;
 create index if not exists tasks_start_date_idx on public.tasks (start_date);
+alter table public.tasks add column if not exists end_time time;
+update public.tasks set end_time = '11:00' where end_time is null and start_time <= '09:00';
+update public.tasks set end_time = '13:00' where end_time is null and start_time = '11:00';
+update public.tasks set end_time = '15:00' where end_time is null and start_time = '13:00';
+update public.tasks set end_time = '17:00' where end_time is null and start_time = '15:00';
+update public.tasks set end_time = '19:00' where end_time is null;
+alter table public.tasks alter column end_time set not null;
 
 create table if not exists public.workspace_notifications (
   id uuid primary key default gen_random_uuid(),

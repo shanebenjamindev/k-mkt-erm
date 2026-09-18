@@ -63,8 +63,11 @@ const toLocalUser = (member: StoredMember): SessionUser => ({
 
 export async function hasWorkspaceUsers() {
   if (hasSupabaseBackend && supabaseAdmin) {
-    const { count, error } = await supabaseAdmin.from("team_members").select("id", { count: "exact", head: true });
-    if (error) throw new Error(`Không thể kiểm tra workspace Supabase: ${error.message}`);
+    const { count, error, status } = await supabaseAdmin.from("team_members").select("id", { count: "exact", head: true });
+    if (error) {
+      if (status === 401 || !error.message) throw new Error("Không thể xác thực Supabase. Hãy kiểm tra SUPABASE_SECRET_KEY trên Vercel có đúng project và chưa bị thay mới.");
+      throw new Error(`Không thể kiểm tra workspace Supabase: ${error.message}`);
+    }
     return (count ?? 0) > 0;
   }
   return (await readWorkspace()).members.length > 0;

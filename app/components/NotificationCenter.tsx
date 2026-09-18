@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { WorkspaceNotification } from "../../lib/types";
 import { useAuth } from "./AuthProvider";
 import { Icon } from "./Icon";
@@ -14,6 +15,7 @@ function base64ToBytes(value: string) {
 }
 
 export function NotificationCenter() {
+  const router = useRouter();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<WorkspaceNotification[]>([]);
@@ -43,6 +45,12 @@ export function NotificationCenter() {
     await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
   };
 
+  const openNotification = (item: WorkspaceNotification) => {
+    void markRead(item.id);
+    setOpen(false);
+    if (item.taskId) router.push(`/tasks?task=${encodeURIComponent(item.taskId)}`);
+  };
+
   const enablePush = async () => {
     setMessage(null);
     try {
@@ -62,7 +70,7 @@ export function NotificationCenter() {
   };
 
   const unread = items.filter((item) => !item.readAt).length;
-  return <div className="notification-center"><button className="notification-trigger" type="button" onClick={() => { setOpen((current) => !current); if (!open) void load(); }} aria-label="Thông báo"><Icon name="bell" size={18}/>{unread > 0 && <b>{unread > 9 ? "9+" : unread}</b>}</button>{open && <div className="notification-panel"><div className="notification-panel-head"><div><strong>Thông báo</strong><small>{unread ? `${unread} chưa đọc` : "Đã xem tất cả"}</small></div><button type="button" className="text-button" onClick={() => void enablePush()}>Bật noti iPhone</button></div>{message && <p className="notification-message">{message}</p>}<div className="notification-list">{loading && !items.length ? <p>Đang tải…</p> : items.length ? items.map((item) => <button type="button" className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id} onClick={() => void markRead(item.id)}><span><b>{item.title}</b><small>{item.body}</small></span><time>{formatTime(item.createdAt)}</time></button>) : <p>Chưa có thông báo mới.</p>}</div></div>}</div>;
+  return <div className="notification-center"><button className="notification-trigger" type="button" onClick={() => { setOpen((current) => !current); if (!open) void load(); }} aria-label="Thông báo"><Icon name="bell" size={18}/>{unread > 0 && <b>{unread > 9 ? "9+" : unread}</b>}</button>{open && <div className="notification-panel"><div className="notification-panel-head"><div><strong>Thông báo</strong><small>{unread ? `${unread} chưa đọc` : "Đã xem tất cả"}</small></div><button type="button" className="text-button" onClick={() => void enablePush()}>Bật noti iPhone</button></div>{message && <p className="notification-message">{message}</p>}<div className="notification-list">{loading && !items.length ? <p>Đang tải…</p> : items.length ? items.map((item) => <button type="button" className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id} onClick={() => openNotification(item)}><span><b>{item.title}</b><small>{item.body}</small></span><time>{formatTime(item.createdAt)}</time></button>) : <p>Chưa có thông báo mới.</p>}</div></div>}</div>;
 }
 
 function formatTime(value: string) {

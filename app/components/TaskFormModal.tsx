@@ -7,8 +7,9 @@ import { DateRangePicker } from "./DateRangePicker";
 import { useWorkspace } from "./WorkspaceProvider";
 
 type Props = { task?: Task | null; onClose: () => void; onSaved?: (task: Task) => void };
+const timeOptions = ["09:00", "11:00", "13:00", "15:00", "17:00", "19:00"];
 function todayIso() { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
-function newTask(): TaskInput { const today = todayIso(); return { title: "", owner: "Chưa phân công", workType: "inhouse", status: "todo", startDate: today, deadline: today, startTime: "09:00", format: "", brief: "" }; }
+function newTask(): TaskInput { const today = todayIso(); return { title: "", owner: "Chưa phân công", workType: "inhouse", status: "todo", startDate: today, deadline: today, startTime: "09:00", endTime: "11:00", format: "", brief: "" }; }
 
 export function TaskFormModal({ task, onClose, onSaved }: Props) {
   const { members, createTask, updateTask } = useWorkspace();
@@ -17,7 +18,7 @@ export function TaskFormModal({ task, onClose, onSaved }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setForm(task ? { title: task.title, owner: task.owner, workType: task.workType, status: task.status, startDate: task.startDate ?? task.deadline ?? todayIso(), deadline: task.deadline ?? task.startDate ?? todayIso(), startTime: task.startTime, format: task.format, brief: task.brief } : newTask());
+    setForm(task ? { title: task.title, owner: task.owner, workType: task.workType, status: task.status, startDate: task.startDate ?? task.deadline ?? todayIso(), deadline: task.deadline ?? task.startDate ?? todayIso(), startTime: task.startTime, endTime: task.endTime ?? "11:00", format: task.format, brief: task.brief } : newTask());
     setError(null);
   }, [task]);
 
@@ -45,7 +46,8 @@ export function TaskFormModal({ task, onClose, onSaved }: Props) {
         <div className="field full"><span>Thời gian thực hiện</span><DateRangePicker startDate={form.startDate} endDate={form.deadline} onChange={(startDate, deadline) => setForm((current) => ({ ...current, startDate, deadline }))} /></div>
         <label className="field">Loại<select value={form.workType} disabled={form.owner !== "Chưa phân công"} onChange={(event) => set("workType", event.target.value as TaskInput["workType"])}>{Object.entries(workTypeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
         <label className="field">Trạng thái<select value={form.status} onChange={(event) => set("status", event.target.value as TaskInput["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-        <label className="field">Giờ bắt đầu<select value={form.startTime} onChange={(event) => set("startTime", event.target.value)}>{["09:00", "11:00", "13:00", "15:00", "17:00"].map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+        <label className="field">Giờ bắt đầu<select value={form.startTime} onChange={(event) => { const startTime = event.target.value; setForm((current) => ({ ...current, startTime, endTime: current.endTime > startTime ? current.endTime : timeOptions[timeOptions.indexOf(startTime) + 1] })); }}>{timeOptions.slice(0, -1).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+        <label className="field">Giờ kết thúc<select value={form.endTime} onChange={(event) => set("endTime", event.target.value)}>{timeOptions.filter((time) => time > form.startTime).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
         <label className="field full">Định dạng / bàn giao<input value={form.format} onChange={(event) => set("format", event.target.value)} placeholder="Ví dụ: Carousel · 6 slides" /></label>
         <label className="field full">Brief nội dung<textarea value={form.brief} onChange={(event) => set("brief", event.target.value)} placeholder="Mục tiêu, thông điệp, yêu cầu bàn giao..." rows={4} /></label>
       </div>

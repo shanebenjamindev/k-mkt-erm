@@ -22,14 +22,14 @@ const cleanAvatar = (value?: string) => value?.startsWith("data:image/") ? value
 const usernameEmail = (username: string) => `${cleanUsername(username)}@accounts.k-mkt.local`;
 const publicMember = ({ passwordHash: _passwordHash, ...member }: StoredMember): TeamMember => member;
 
-type TaskRow = { id: string; code: string; title: string; owner_name: string; work_type: WorkType; status: TaskStatus; start_date: string | null; deadline: string | null; start_time: string; format: string; brief: string; created_at: string; updated_at: string };
+type TaskRow = { id: string; code: string; title: string; owner_name: string; work_type: WorkType; status: TaskStatus; start_date: string | null; deadline: string | null; start_time: string; end_time: string; format: string; brief: string; created_at: string; updated_at: string };
 type MemberRow = { id: string; name: string; role: string; work_type: WorkType; username: string; access_role: AccessRole; avatar_url: string | null; initials: string; must_change_password: boolean; created_at: string };
 type NotificationRow = { id: string; user_id: string; task_id: string | null; kind: NotificationKind; title: string; body: string; event_key: string; read_at: string | null; created_at: string };
 type PushRow = { id: string; user_id: string; endpoint: string; keys: { p256dh: string; auth: string }; created_at: string };
 
 const toTask = (row: TaskRow): Task => ({
   id: row.id, code: row.code, title: row.title, owner: row.owner_name || UNASSIGNED, workType: row.work_type,
-  status: row.status, startDate: row.start_date ?? row.deadline, deadline: row.deadline, startTime: row.start_time.slice(0, 5), format: row.format,
+  status: row.status, startDate: row.start_date ?? row.deadline, deadline: row.deadline, startTime: row.start_time.slice(0, 5), endTime: row.end_time?.slice(0, 5) ?? "11:00", format: row.format,
   brief: row.brief, createdAt: row.created_at, updatedAt: row.updated_at
 });
 const toMember = (row: MemberRow): TeamMember => ({
@@ -77,9 +77,12 @@ function applyOwnerType(input: TaskInput, members: TeamMember[]) {
 function normalizeSchedule(input: TaskInput): TaskInput {
   const startDate = input.startDate || input.deadline;
   const deadline = input.deadline || startDate;
+  const startTime = validTime(input.startTime);
+  const endTime = validTime(input.endTime);
   if (!startDate || !deadline) throw new Error("Vui lòng chọn ngày bắt đầu và ngày kết thúc.");
   if (startDate > deadline) throw new Error("Ngày kết thúc phải sau hoặc trùng ngày bắt đầu.");
-  return { ...input, startDate, deadline };
+  if (endTime <= startTime) throw new Error("Giờ kết thúc phải sau giờ bắt đầu.");
+  return { ...input, startDate, deadline, startTime, endTime };
 }
 
 function validateMemberInput(input: TeamMemberInput) {
@@ -150,7 +153,7 @@ export async function createTask(input: TaskInput): Promise<Task> {
     const { data, error } = await database().from("tasks").insert({
       code: nextCode(await listTasks()), title: clean.title.trim(), owner_name: clean.owner,
       work_type: clean.workType, status: clean.status, start_date: clean.startDate || null, deadline: clean.deadline || null,
-      start_time: clean.startTime, format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
+      start_time: clean.startTime, end_time: clean.endTime, format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
     }).select().single();
     if (error || !data) fail(error, "Không thể tạo công việc");
     const task = toTask(data as TaskRow);
@@ -181,13 +184,13 @@ export async function updateTask(id: string, input: Partial<TaskInput>): Promise
       title: input.title ?? previous.title, owner: input.owner ?? previous.owner, workType: input.workType ?? previous.workType,
       status: input.status ?? previous.status, deadline: input.deadline === "" ? null : input.deadline ?? previous.deadline,
       startDate: input.startDate === "" ? null : input.startDate ?? previous.startDate ?? previous.deadline,
-      startTime: input.startTime ?? previous.startTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief
+      startTime: input.startTime ?? previous.startTime, endTime: input.endTime ?? previous.endTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief
     };
     const clean = normalizeSchedule(applyOwnerType(merged, await listMembers()));
     if (!clean.title.trim()) throw new Error("Tên công việc là bắt buộc.");
     const { data, error } = await database().from("tasks").update({
       title: clean.title.trim(), owner_name: clean.owner, work_type: clean.workType, status: clean.status,
-      start_date: clean.startDate || null, deadline: clean.deadline || null, start_time: clean.startTime, format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
+      start_date: clean.startDate || null, deadline: clean.deadline || null, start_time: clean.startTime, end_time: clean.endTime, format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
     }).eq("id", id).select().single();
     if (error || !data) fail(error, "Không thể cập nhật công việc");
     const task = toTask(data as TaskRow);
@@ -202,7 +205,7 @@ export async function updateTask(id: string, input: Partial<TaskInput>): Promise
     title: input.title ?? previous.title, owner: input.owner ?? previous.owner, workType: input.workType ?? previous.workType,
     status: input.status ?? previous.status, deadline: input.deadline === "" ? null : input.deadline ?? previous.deadline,
     startDate: input.startDate === "" ? null : input.startDate ?? previous.startDate ?? previous.deadline,
-    startTime: input.startTime ?? previous.startTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief
+    startTime: input.startTime ?? previous.startTime, endTime: input.endTime ?? previous.endTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief
   };
   const clean = normalizeSchedule(applyOwnerType(merged, data.members.map(publicMember)));
   if (!clean.title.trim()) throw new Error("Tên công việc là bắt buộc.");
