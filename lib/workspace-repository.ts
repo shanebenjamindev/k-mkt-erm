@@ -324,12 +324,10 @@ export async function updateCurrentProfile(id: string, input: { name: string; ro
     if (!previous) return null;
     const members = await listMembers();
     if (members.some((item) => item.id !== id && item.username === username)) throw new Error("Username đã tồn tại.");
-    if (input.newPassword) {
-      const client = createSupabaseAuthClient(authToken ?? undefined);
-      if (!client) throw new Error("Không thể tạo phiên Supabase để đổi mật khẩu.");
-      const { error: passwordError } = await client.auth.updateUser({ password: input.newPassword });
-      if (passwordError) fail(passwordError, "Không thể đổi mật khẩu");
-    }
+if (input.newPassword) {
+  const { error: passwordError } = await database().auth.admin.updateUserById(id, { password: input.newPassword });
+  if (passwordError) fail(passwordError, "Không thể đổi mật khẩu");
+}
     if (previous.username !== username) {
       const { error: usernameError } = await database().auth.admin.updateUserById(id, { email: usernameEmail(username), email_confirm: true });
       if (usernameError) fail(usernameError, "Không thể cập nhật username đăng nhập");
