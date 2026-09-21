@@ -7,6 +7,7 @@ import "./login.css";
 import "./drive.css";
 import "./profile.css";
 import "./dashboard.css";
+import "./kanban.css";
 import { AuthProvider } from "./components/AuthProvider";
 import { WorkspaceProvider } from "./components/WorkspaceProvider";
 import { PwaRegistration } from "./components/PwaRegistration";

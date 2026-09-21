@@ -4,6 +4,9 @@ self.addEventListener("push", (event) => {
     body: payload.body || "Bạn có một cập nhật mới.",
     icon: "/icon",
     badge: "/icon",
+    silent: false,
+    vibrate: [120, 60, 120],
+    renotify: true,
     data: { url: payload.url || "/" }
   }));
 });

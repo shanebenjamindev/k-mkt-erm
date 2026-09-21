@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "test:calendar": "sh scripts/test-calendar-presentation.sh",
     "start": "next start",
     "generate:vapid": "web-push generate-vapid-keys"
   },
