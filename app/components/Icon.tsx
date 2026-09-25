@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-export type IconName = "dashboard" | "tasks" | "calendar" | "briefs" | "drive" | "users" | "logout" | "folder" | "video" | "file" | "upload" | "plus" | "chevronLeft" | "more" | "edit" | "trash" | "refresh" | "external" | "close" | "warning" | "bell";
+export type IconName = "dashboard" | "tasks" | "calendar" | "briefs" | "drive" | "users" | "settings" | "logout" | "folder" | "video" | "file" | "upload" | "plus" | "chevronLeft" | "more" | "edit" | "trash" | "refresh" | "external" | "close" | "warning" | "bell";
 
 const paths: Record<IconName, React.ReactNode> = {
   dashboard: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
@@ -9,6 +9,7 @@ const paths: Record<IconName, React.ReactNode> = {
   briefs: <><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></>,
   drive: <><path d="m8 3 4 7H4zM16 3l4 7h-8zM8 12h8l-4 7z"/></>,
   users: <><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M17 11a4 4 0 1 0-1-7.87M21 21v-2a4 4 0 0 0-3-3.87"/></>,
+  settings: <><path d="M10 3h4l.7 2.1 2 .9 2-.9 2.3 3.5-1.6 1.6.1 2.2 1.5 1.6-2.2 3.5-2.1-.8-2 .9L14 21h-4l-.7-2.1-2-.9-2 .8L3 15.3l1.5-1.6.1-2.2L3 9.9l2.3-3.5 2 .9 2-.9z"/><circle cx="12" cy="12" r="3"/></>,
   logout: <><path d="M10 17l5-5-5-5M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-6"/></>,
   folder: <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/>,
   video: <><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></>,

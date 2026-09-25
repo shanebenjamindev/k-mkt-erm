@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { statusLabels, taskStartDate, workTypeLabels, type Task, type TaskInput } from "../../lib/types";
 import { AssigneePicker } from "./AssigneePicker";
 import { DateRangePicker } from "./DateRangePicker";
+import { TaskReminderEditor } from "./TaskReminderEditor";
 import { LinkifiedText } from "./LinkifiedText";
 import { useWorkspace } from "./WorkspaceProvider";
 
@@ -40,6 +41,7 @@ function taskInput(task: Task): TaskInput {
     reminderDate: task.reminderDate,
     reminderTime: task.reminderTime,
     reminderRepeat: task.reminderRepeat,
+    reminderOffsets: task.reminderOffsets,
     format: task.format,
     brief: task.brief
   };
@@ -125,7 +127,7 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
             <label className="field">Trạng thái<select value={draft.status} onChange={(event) => updateDraft("status", event.target.value as TaskInput["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="field">Giờ bắt đầu<select value={draft.startTime} onChange={(event) => { const startTime = event.target.value; setDraft((current) => current ? { ...current, startTime, endTime: current.endTime > startTime ? current.endTime : timeOptions[timeOptions.indexOf(startTime) + 1] } : current); }}>{timeOptions.slice(0, -1).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
             <label className="field">Giờ kết thúc<select value={draft.endTime} onChange={(event) => updateDraft("endTime", event.target.value)}>{timeOptions.filter((time) => time > draft.startTime).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
-            <div className="field full reminder-fields"><label><input type="checkbox" checked={Boolean(draft.reminderTime)} onChange={(event) => setDraft((current) => current ? { ...current, reminderDate: event.target.checked ? (current.startDate ?? todayIso()) : null, reminderTime: event.target.checked ? "09:00" : null, reminderRepeat: event.target.checked ? "none" : current.reminderRepeat } : current)}/> Bật nhắc công việc</label>{draft.reminderTime && <div className="reminder-field-grid"><label>Ngày nhắc<input type="date" value={draft.reminderDate ?? ""} max={draft.deadline ?? undefined} onChange={(event) => updateDraft("reminderDate", event.target.value || null)}/></label><label>Giờ nhắc<input type="time" value={draft.reminderTime} onChange={(event) => updateDraft("reminderTime", event.target.value || null)}/></label><label>Lặp lại<select value={draft.reminderRepeat ?? "none"} onChange={(event) => updateDraft("reminderRepeat", event.target.value as TaskInput["reminderRepeat"])}><option value="none">Một lần</option><option value="daily">Mỗi ngày</option><option value="weekly">Mỗi tuần</option></select></label></div>}</div>
+            <TaskReminderEditor value={draft} onChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)} disabled={saving}/>
             <label className="field">Định dạng<input value={draft.format} onChange={(event) => updateDraft("format", event.target.value)} /></label>
             <label className="field full">Brief nội dung<textarea rows={4} value={draft.brief} onChange={(event) => updateDraft("brief", event.target.value)} /></label>
           </div>
@@ -141,6 +143,7 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
             <span>Định dạng<strong>{selected.format || "Chưa xác định"}</strong></span>
             <span>Trạng thái<strong>{statusLabels[selected.status]}</strong></span>
             <span>Nhắc công việc<strong>{selected.reminderDate && selected.reminderTime ? `${formatDate(selected.reminderDate)} · ${selected.reminderTime}${selected.reminderRepeat === "daily" ? " · Mỗi ngày" : selected.reminderRepeat === "weekly" ? " · Mỗi tuần" : ""}` : "Chưa đặt"}</strong></span>
+            <span>Nhắc trước giờ bắt đầu<strong>{selected.reminderOffsets.length ? selected.reminderOffsets.map((minutes) => minutes === 0 ? "Đúng giờ" : `${minutes} phút trước`).join(", ") : "Chưa đặt"}</strong></span>
           </div>
           <div className="brief"><b>BRIEF NỘI DUNG</b><p><LinkifiedText text={selected.brief || "Chưa có brief. Hãy bổ sung yêu cầu và thông điệp chính cho công việc này."} /></p></div>
           {actionError && <p className="form-error">{actionError}</p>}

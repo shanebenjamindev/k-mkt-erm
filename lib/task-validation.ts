@@ -17,7 +17,7 @@ export function isClockTime(value: unknown): value is string {
   return typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
-const fields = ["title", "owner", "assigneeIds", "format", "brief", "startDate", "deadline", "startTime", "endTime", "workType", "status", "reminderDate", "reminderTime", "reminderRepeat"] as const;
+const fields = ["title", "owner", "assigneeIds", "format", "brief", "startDate", "deadline", "startTime", "endTime", "workType", "status", "reminderDate", "reminderTime", "reminderRepeat", "reminderOffsets"] as const;
 
 export function isTaskPatch(value: unknown): value is Partial<TaskInput> {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -32,6 +32,7 @@ export function isTaskPatch(value: unknown): value is Partial<TaskInput> {
   if (item.reminderDate !== undefined && item.reminderDate !== null && !isCalendarDate(item.reminderDate)) return false;
   if (item.reminderTime !== undefined && item.reminderTime !== null && !isClockTime(item.reminderTime)) return false;
   if (item.reminderRepeat !== undefined && !["none", "daily", "weekly"].includes(item.reminderRepeat as string)) return false;
+  if (item.reminderOffsets !== undefined && (!Array.isArray(item.reminderOffsets) || item.reminderOffsets.length > 5 || !item.reminderOffsets.every((offset: unknown) => Number.isInteger(offset) && (offset as number) >= 0 && (offset as number) <= 10080) || new Set(item.reminderOffsets).size !== item.reminderOffsets.length)) return false;
   if (item.reminderTime && !item.reminderDate) return false;
   if (item.reminderDate && !item.reminderTime) return false;
   for (const field of ["startTime", "endTime"] as const) if (item[field] !== undefined && !isClockTime(item[field])) return false;
@@ -43,5 +44,5 @@ export function isTaskPatch(value: unknown): value is Partial<TaskInput> {
 }
 
 export function isTaskInput(value: unknown): value is TaskInput {
-  return isTaskPatch(value) && fields.filter((field) => !["assigneeIds", "reminderDate", "reminderTime", "reminderRepeat"].includes(field)).every((field) => value[field] !== undefined);
+  return isTaskPatch(value) && fields.filter((field) => !["assigneeIds", "reminderDate", "reminderTime", "reminderRepeat", "reminderOffsets"].includes(field)).every((field) => value[field] !== undefined);
 }

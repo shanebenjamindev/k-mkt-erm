@@ -3,10 +3,11 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PushSubscriptionRecord, TeamMember, Task, WorkspaceNotification } from "./types";
+import { DEFAULT_PROJECT_SETTINGS, type ProjectSettings } from "./project-settings";
 
 export type StoredMember = TeamMember & { passwordHash: string };
 export type StoredSession = { tokenHash: string; memberId: string; expiresAt: string };
-export type WorkspaceData = { tasks: Task[]; members: StoredMember[]; sessions: StoredSession[]; notifications: WorkspaceNotification[]; pushSubscriptions: PushSubscriptionRecord[] };
+export type WorkspaceData = { tasks: Task[]; members: StoredMember[]; sessions: StoredSession[]; notifications: WorkspaceNotification[]; pushSubscriptions: PushSubscriptionRecord[]; settings: ProjectSettings };
 
 const storePath = path.join(process.cwd(), ".data", "workspace.json");
 type Transaction = { data?: WorkspaceData; dirty: boolean };
@@ -17,7 +18,7 @@ const globalStore = globalThis as typeof globalThis & {
 const coordinator = globalStore.kMktStore ??= { queue: Promise.resolve(), context: new AsyncLocalStorage<Transaction>() };
 
 function emptyWorkspace(): WorkspaceData {
-  return { tasks: [], members: [], sessions: [], notifications: [], pushSubscriptions: [] };
+  return { tasks: [], members: [], sessions: [], notifications: [], pushSubscriptions: [], settings: DEFAULT_PROJECT_SETTINGS };
 }
 
 function normalizeWorkspace(data: WorkspaceData): WorkspaceData {
@@ -25,6 +26,7 @@ function normalizeWorkspace(data: WorkspaceData): WorkspaceData {
     sessions: data.sessions ?? [],
     notifications: data.notifications ?? [],
     pushSubscriptions: data.pushSubscriptions ?? [],
+    settings: data.settings ?? DEFAULT_PROJECT_SETTINGS,
     members: data.members.map((member) => ({
       ...member,
       avatarUrl: member.avatarUrl || undefined,
@@ -39,7 +41,7 @@ function normalizeWorkspace(data: WorkspaceData): WorkspaceData {
         : data.members.filter((member) => member.name === task.owner).map((member) => member.id);
       const owner = assigneeIds.map((id) => data.members.find((member) => member.id === id)?.name).filter(Boolean).join(", ") || "Chưa phân công";
       return { ...withoutDuration, assigneeIds, owner, startDate: task.startDate || task.deadline || null, startTime, endTime,
-        reminderDate: task.reminderDate ?? null, reminderTime: task.reminderTime ?? null, reminderRepeat: task.reminderRepeat ?? "none" };
+        reminderDate: task.reminderDate ?? null, reminderTime: task.reminderTime ?? null, reminderRepeat: task.reminderRepeat ?? "none", reminderOffsets: task.reminderOffsets ?? [] };
     })
   };
 }

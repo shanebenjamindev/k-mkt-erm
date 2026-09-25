@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { nextScheduledAt, taskReminderDue, vietnamNow } from "./reminder-schedule";
+import { DEFAULT_PROJECT_SETTINGS, type ProjectSettings } from "./project-settings";
+import { dueRelativeOffsets, nextScheduledAt, taskReminderDue, vietnamNow } from "./reminder-schedule";
 import { isCalendarDate, isClockTime, TaskValidationError } from "./task-validation";
 import { hashPassword } from "./password";
 import { NOTIFICATION_REMINDER_COOLDOWN_MS, reminderRetryAfter, type NotificationFeed } from "./notification-state";
@@ -25,7 +26,7 @@ const cleanAvatar = (value?: string) => value?.startsWith("data:image/") ? value
 const usernameEmail = (username: string) => `${cleanUsername(username)}@accounts.k-mkt.local`;
 const publicMember = ({ passwordHash: _passwordHash, ...member }: StoredMember): TeamMember => member;
 
-type TaskRow = { id: string; code: string; title: string; owner_name: string; assignee_ids?: string[]; work_type: WorkType; status: TaskStatus; start_date: string | null; deadline: string | null; start_time: string; end_time: string; reminder_date?: string | null; reminder_time?: string | null; reminder_repeat?: Task["reminderRepeat"]; format: string; brief: string; created_at: string; updated_at: string };
+type TaskRow = { id: string; code: string; title: string; owner_name: string; assignee_ids?: string[]; work_type: WorkType; status: TaskStatus; start_date: string | null; deadline: string | null; start_time: string; end_time: string; reminder_date?: string | null; reminder_time?: string | null; reminder_repeat?: Task["reminderRepeat"]; reminder_offsets?: number[]; format: string; brief: string; created_at: string; updated_at: string };
 type MemberRow = { id: string; name: string; role: string; work_type: WorkType; username: string; access_role: AccessRole; avatar_url: string | null; initials: string; must_change_password: boolean; created_at: string };
 type NotificationRow = { id: string; user_id: string; task_id: string | null; kind: NotificationKind; title: string; body: string; event_key: string; read_at: string | null; reminded_at?: string | null; scheduled_at?: string | null; scheduled_repeat?: Task["reminderRepeat"]; created_at: string };
 type PushRow = { id: string; user_id: string; endpoint: string; keys: { p256dh: string; auth: string }; created_at: string };
@@ -52,7 +53,7 @@ const toTask = (row: TaskRow, members: TeamMember[] = []): Task => ({
   id: row.id, code: row.code, title: row.title,
   assigneeIds: row.assignee_ids?.filter((id) => members.some((member) => member.id === id)) ?? members.filter((member) => member.name === row.owner_name).map((member) => member.id).slice(0, 1),
   owner: row.assignee_ids ? assigneeNames(row.assignee_ids, members) : row.owner_name || UNASSIGNED, workType: row.work_type,
-  status: row.status, startDate: row.start_date ?? row.deadline, deadline: row.deadline, startTime: row.start_time.slice(0, 5), endTime: row.end_time?.slice(0, 5) ?? "11:00", reminderDate: row.reminder_date ?? null, reminderTime: row.reminder_time?.slice(0, 5) ?? null, reminderRepeat: row.reminder_repeat ?? "none", format: row.format,
+  status: row.status, startDate: row.start_date ?? row.deadline, deadline: row.deadline, startTime: row.start_time.slice(0, 5), endTime: row.end_time?.slice(0, 5) ?? "11:00", reminderDate: row.reminder_date ?? null, reminderTime: row.reminder_time?.slice(0, 5) ?? null, reminderRepeat: row.reminder_repeat ?? "none", reminderOffsets: row.reminder_offsets ?? [], format: row.format,
   brief: row.brief, createdAt: row.created_at, updatedAt: row.updated_at
 });
 const toMember = (row: MemberRow): TeamMember => ({
@@ -189,7 +190,7 @@ export async function createTask(input: TaskInput, effects?: TaskEffects): Promi
       const { data, error } = await database().from("tasks").insert({
         code: nextCode(await listTasks()), title: clean.title.trim(), owner_name: clean.owner, assignee_ids: clean.assigneeIds,
         work_type: clean.workType, status: clean.status, start_date: clean.startDate || null, deadline: clean.deadline || null,
-        reminder_date: clean.reminderDate ?? null, reminder_time: clean.reminderTime ?? null, reminder_repeat: clean.reminderRepeat ?? "none",
+        reminder_date: clean.reminderDate ?? null, reminder_time: clean.reminderTime ?? null, reminder_repeat: clean.reminderRepeat ?? "none", reminder_offsets: clean.reminderOffsets ?? [],
         start_time: clean.startTime, end_time: clean.endTime, format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
       }).select().single();
       if (error?.code === "23505") continue;
@@ -207,7 +208,7 @@ export async function createTask(input: TaskInput, effects?: TaskEffects): Promi
     const now = new Date().toISOString();
     const task: Task = {
       id: randomUUID(), code: nextCode(data.tasks), ...clean, assigneeIds: clean.assigneeIds ?? [], title: clean.title.trim(), deadline: clean.deadline || null,
-      reminderDate: clean.reminderDate ?? null, reminderTime: clean.reminderTime ?? null, reminderRepeat: clean.reminderRepeat ?? "none",
+      reminderDate: clean.reminderDate ?? null, reminderTime: clean.reminderTime ?? null, reminderRepeat: clean.reminderRepeat ?? "none", reminderOffsets: clean.reminderOffsets ?? [],
       format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim(), createdAt: now, updatedAt: now
     };
     data.tasks.push(task);
@@ -231,6 +232,7 @@ export async function updateTask(id: string, input: Partial<TaskInput>, effects?
         reminderDate: input.reminderDate !== undefined ? input.reminderDate : previous.reminderDate,
         reminderTime: input.reminderTime !== undefined ? input.reminderTime : previous.reminderTime,
         reminderRepeat: input.reminderRepeat ?? previous.reminderRepeat,
+        reminderOffsets: input.reminderOffsets ?? previous.reminderOffsets,
         status: input.status ?? previous.status, deadline: input.deadline === "" ? null : input.deadline ?? previous.deadline,
         startDate: input.startDate === "" ? null : input.startDate ?? previous.startDate ?? previous.deadline,
         startTime: input.startTime ?? previous.startTime, endTime: input.endTime ?? previous.endTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief
@@ -240,7 +242,7 @@ export async function updateTask(id: string, input: Partial<TaskInput>, effects?
       const { data, error } = await database().from("tasks").update({
         title: clean.title.trim(), owner_name: clean.owner, assignee_ids: clean.assigneeIds, work_type: clean.workType, status: clean.status,
         start_date: clean.startDate || null, deadline: clean.deadline || null, start_time: clean.startTime, end_time: clean.endTime,
-        reminder_date: clean.reminderDate ?? null, reminder_time: clean.reminderTime ?? null, reminder_repeat: clean.reminderRepeat ?? "none", format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
+        reminder_date: clean.reminderDate ?? null, reminder_time: clean.reminderTime ?? null, reminder_repeat: clean.reminderRepeat ?? "none", reminder_offsets: clean.reminderOffsets ?? [], format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
       }).eq("id", id).eq("updated_at", previous.updatedAt).select().maybeSingle();
       if (error) fail(error, "Không thể cập nhật công việc");
       if (!data) continue;
@@ -261,6 +263,7 @@ export async function updateTask(id: string, input: Partial<TaskInput>, effects?
       reminderDate: input.reminderDate !== undefined ? input.reminderDate : previous.reminderDate,
       reminderTime: input.reminderTime !== undefined ? input.reminderTime : previous.reminderTime,
       reminderRepeat: input.reminderRepeat ?? previous.reminderRepeat,
+      reminderOffsets: input.reminderOffsets ?? previous.reminderOffsets,
       status: input.status ?? previous.status, deadline: input.deadline === "" ? null : input.deadline ?? previous.deadline,
       startDate: input.startDate === "" ? null : input.startDate ?? previous.startDate ?? previous.deadline,
       startTime: input.startTime ?? previous.startTime, endTime: input.endTime ?? previous.endTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief
@@ -644,12 +647,12 @@ export async function createDeadlineReminders(now = new Date()) {
   return recordDeadlineReminders(now);
 }
 
-export async function createScheduledReminders(now = new Date()) {
-  if (!isRemote()) return withWorkspaceTransaction(() => recordScheduledReminders(now));
-  return recordScheduledReminders(now);
+export async function createScheduledReminders(now = new Date(), userId?: string) {
+  if (!isRemote()) return withWorkspaceTransaction(() => recordScheduledReminders(now, userId));
+  return recordScheduledReminders(now, userId);
 }
 
-async function recordScheduledReminders(now: Date) {
+async function recordScheduledReminders(now: Date, userId?: string) {
   const created: WorkspaceNotification[] = [];
   const localData = isRemote() ? undefined : await readWorkspace();
   const [tasks, members] = localData
@@ -657,16 +660,22 @@ async function recordScheduledReminders(now: Date) {
     : await Promise.all([listTasks(), listMembers()]);
   const today = vietnamNow(now).date;
   for (const task of tasks) {
-    if (!taskReminderDue(task, now)) continue;
-    for (const userId of taskAssigneeIds(task, members)) {
-      const payload = { userId, taskId: task.id, kind: "task_due" as const, title: "Nhắc công việc theo lịch",
-        body: `${task.code} · ${task.title}`, eventKey: `scheduled:${task.id}:${today}` };
-      const notification = localData ? addLocalNotification(localData, payload) : await addRemoteNotification(payload);
-      if (notification) created.push(notification);
+    const relativeOffsets = dueRelativeOffsets(task, now);
+    if (!taskReminderDue(task, now) && !relativeOffsets.length) continue;
+    for (const assigneeId of taskAssigneeIds(task, members)) {
+      if (userId && assigneeId !== userId) continue;
+      const keys = [...(taskReminderDue(task, now) ? [`scheduled:${task.id}:${today}`] : []), ...relativeOffsets.map((offset) => `relative:${task.id}:${task.startDate}:${task.startTime}:${offset}`)];
+      for (const eventKey of keys) {
+        const payload = { userId: assigneeId, taskId: task.id, kind: "task_due" as const, title: "Nhắc công việc theo lịch",
+          body: `${task.code} · ${task.title}`, eventKey };
+        const notification = localData ? addLocalNotification(localData, payload) : await addRemoteNotification(payload);
+        if (notification) created.push(notification);
+      }
     }
   }
   if (localData) {
     for (const notification of localData.notifications) {
+      if (userId && notification.userId !== userId) continue;
       if (!notification.scheduledAt || Date.parse(notification.scheduledAt) > now.getTime()) continue;
       notification.remindedAt = now.toISOString();
       notification.createdAt = now.toISOString();
@@ -678,7 +687,9 @@ async function recordScheduledReminders(now: Date) {
     }
     if (created.length) await writeWorkspace(localData);
   } else {
-    const { data, error } = await database().from("workspace_notifications").select("*").lte("scheduled_at", now.toISOString()).limit(100);
+    let query = database().from("workspace_notifications").select("*").lte("scheduled_at", now.toISOString());
+    if (userId) query = query.eq("user_id", userId);
+    const { data, error } = await query.limit(100);
     if (error) fail(error, "Không thể tải lịch nhắc");
     for (const row of (data ?? []) as NotificationRow[]) {
       let next = nextScheduledAt(row.scheduled_at!, row.scheduled_repeat ?? "none");
@@ -716,3 +727,29 @@ async function recordDeadlineReminders(now: Date) {
 }
 
 export const unassignedOwner = UNASSIGNED;
+
+export async function getProjectSettings(): Promise<ProjectSettings> {
+  if (isRemote()) {
+    const { data, error } = await database().from("workspace_settings").select("*").eq("id", 1).maybeSingle();
+    if (error) {
+      if (error.code === "42P01" || error.code === "PGRST205") return DEFAULT_PROJECT_SETTINGS;
+      fail(error, "Không thể tải cài đặt dự án");
+    }
+    return data ? { accentColor: data.accent_color, backgroundPreset: data.background_preset, backgroundImage: data.background_image, notificationTone: data.notification_tone } : DEFAULT_PROJECT_SETTINGS;
+  }
+  return (await readWorkspace()).settings;
+}
+
+export async function saveProjectSettings(settings: ProjectSettings): Promise<ProjectSettings> {
+  if (isRemote()) {
+    const { data, error } = await database().from("workspace_settings").upsert({ id: 1, accent_color: settings.accentColor, background_preset: settings.backgroundPreset, background_image: settings.backgroundImage, notification_tone: settings.notificationTone }).select().single();
+    if (error || !data) fail(error, "Không thể lưu cài đặt dự án");
+    return { accentColor: data.accent_color, backgroundPreset: data.background_preset, backgroundImage: data.background_image, notificationTone: data.notification_tone };
+  }
+  return withWorkspaceTransaction(async () => {
+    const data = await readWorkspace();
+    data.settings = settings;
+    await writeWorkspace(data);
+    return settings;
+  });
+}

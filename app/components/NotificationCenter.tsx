@@ -8,6 +8,8 @@ import { requestJson, RequestError } from "../../lib/client-request";
 import { notificationDocumentTitle, notificationEventKey, readAllNotificationsInFeed, readNotificationInFeed, reminderAvailableAt, type NotificationFeed } from "../../lib/notification-state";
 import { useAuth } from "./AuthProvider";
 import { Icon } from "./Icon";
+import { playNotificationTone } from "../../lib/notification-sound";
+import { useProjectSettings } from "./ProjectSettingsProvider";
 
 type PushConfig = { configured: boolean; publicKey: string | null; error?: string };
 type Feedback = { text: string; kind: "success" | "error" };
@@ -23,6 +25,7 @@ function base64ToBytes(value: string) {
 }
 
 export function NotificationCenter() {
+  const { settings: projectSettings } = useProjectSettings();
   const router = useRouter();
   const { user } = useAuth();
   const userId = user?.id;
@@ -71,20 +74,8 @@ export function NotificationCenter() {
   const playSound = useCallback(() => {
     const context = audioContextRef.current;
     if (!soundEnabledRef.current || !soundUnlockedRef.current || !context || context.state !== "running" || document.visibilityState !== "visible") return;
-    const start = context.currentTime;
-    [0, 0.14].forEach((offset, index) => {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(index ? 880 : 660, start + offset);
-      gain.gain.setValueAtTime(0.0001, start + offset);
-      gain.gain.exponentialRampToValueAtTime(0.07, start + offset + 0.012);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.12);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start(start + offset);
-      oscillator.stop(start + offset + 0.13);
-    });
-  }, []);
+    playNotificationTone(context, projectSettings.notificationTone);
+  }, [projectSettings.notificationTone]);
 
   const acceptFeed = useCallback((next: NotificationFeed) => {
     const known = knownEvents.current;
@@ -101,10 +92,19 @@ export function NotificationCenter() {
     const version = ++requestVersion.current;
     setLoading(true);
     try {
-      const next = await requestJson<NotificationFeed>("/api/notifications", { cache: "no-store", signal: controller.signal });
+      let next: NotificationFeed;
+      let checkWarning: string | null = null;
+      try {
+        next = await requestJson<NotificationFeed>("/api/notifications/check", { method: "POST", cache: "no-store", signal: controller.signal });
+      } catch (checkError) {
+        if (controller.signal.aborted) throw checkError;
+        // Keep the feed available even if scheduled delivery is temporarily unavailable.
+        checkWarning = checkError instanceof Error ? `Lịch nhắc: ${checkError.message}` : "Không thể kiểm tra lịch nhắc.";
+        next = await requestJson<NotificationFeed>("/api/notifications", { cache: "no-store", signal: controller.signal });
+      }
       if (controller.signal.aborted || version !== requestVersion.current || activeUserRef.current !== userId) return;
       acceptFeed(next);
-      setLoadError(null);
+      setLoadError(checkWarning);
     } catch (error) {
       if (!controller.signal.aborted && version === requestVersion.current && activeUserRef.current === userId) {
         setLoadError(error instanceof Error ? error.message : "Không thể tải thông báo.");

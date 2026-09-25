@@ -29,6 +29,7 @@ create table if not exists public.tasks (
   reminder_date date,
   reminder_time time,
   reminder_repeat text not null default 'none' check (reminder_repeat in ('none', 'daily', 'weekly')),
+  reminder_offsets integer[] not null default '{}',
   format text not null default '',
   brief text not null default '',
   created_at timestamptz not null default now(),
@@ -59,6 +60,7 @@ alter table public.tasks alter column end_time set not null;
 alter table public.tasks add column if not exists reminder_date date;
 alter table public.tasks add column if not exists reminder_time time;
 alter table public.tasks add column if not exists reminder_repeat text not null default 'none';
+alter table public.tasks add column if not exists reminder_offsets integer[] not null default '{}';
 
 create table if not exists public.workspace_notifications (
   id uuid primary key default gen_random_uuid(),
@@ -79,6 +81,15 @@ create table if not exists public.push_subscriptions (
   endpoint text not null unique,
   keys jsonb not null,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.workspace_settings (
+  id integer primary key default 1 check (id = 1),
+  accent_color text not null default '#E53935',
+  background_preset text not null default 'blush',
+  background_image text,
+  notification_tone text not null default 'chime',
+  updated_at timestamptz not null default now()
 );
 
 create index if not exists workspace_notifications_user_created_idx on public.workspace_notifications (user_id, created_at desc);
@@ -106,6 +117,7 @@ alter table public.tasks enable row level security;
 alter table public.team_members enable row level security;
 alter table public.workspace_notifications enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.workspace_settings enable row level security;
 
 -- Fetch the visible feed and the total unread count from the same SQL snapshot.
 -- The server authenticates p_user_id before calling this service-role-only RPC.

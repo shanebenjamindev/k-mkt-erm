@@ -16,6 +16,16 @@ export function taskReminderDue(task: Pick<Task, "status" | "reminderDate" | "re
   return days >= 0 && days % 7 === 0;
 }
 
+export function dueRelativeOffsets(task: Pick<Task, "status" | "startDate" | "startTime" | "reminderOffsets">, now: Date) {
+  if (task.status === "completed" || !task.startDate || !task.reminderOffsets?.length) return [];
+  const start = Date.parse(`${task.startDate}T${task.startTime}:00+07:00`);
+  if (!Number.isFinite(start)) return [];
+  return task.reminderOffsets.filter((offset) => {
+    const due = start - offset * 60_000;
+    return due <= now.getTime() && now.getTime() - due < 86_400_000;
+  });
+}
+
 export function nextScheduledAt(at: string, repeat: ReminderRepeat) {
   if (repeat === "none") return null;
   const next = new Date(at);
