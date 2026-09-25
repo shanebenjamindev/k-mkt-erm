@@ -9,8 +9,8 @@ export async function PATCH(request: NextRequest) {
   try {
     const user = await currentUser();
     if (!user) return NextResponse.json({ error: "Vui lòng đăng nhập." }, { status: 401 });
-    const body = await request.json() as { name?: unknown; role?: unknown; username?: unknown; avatarUrl?: unknown; newPassword?: unknown; confirmPassword?: unknown };
-    if (typeof body.name !== "string" || typeof body.role !== "string" || typeof body.username !== "string") return NextResponse.json({ error: "Thông tin hồ sơ không hợp lệ." }, { status: 400 });
+    const body = await request.json().catch(() => null) as { name?: unknown; role?: unknown; username?: unknown; avatarUrl?: unknown; newPassword?: unknown; confirmPassword?: unknown } | null;
+    if (!body || typeof body.name !== "string" || typeof body.role !== "string" || typeof body.username !== "string") return NextResponse.json({ error: "Thông tin hồ sơ không hợp lệ." }, { status: 400 });
     if (body.avatarUrl !== undefined && typeof body.avatarUrl !== "string") return NextResponse.json({ error: "Avatar không hợp lệ." }, { status: 400 });
     if (body.newPassword !== undefined && typeof body.newPassword !== "string") return NextResponse.json({ error: "Mật khẩu mới không hợp lệ." }, { status: 400 });
     if (body.newPassword && body.newPassword !== body.confirmPassword) return NextResponse.json({ error: "Xác nhận mật khẩu mới chưa khớp." }, { status: 400 });

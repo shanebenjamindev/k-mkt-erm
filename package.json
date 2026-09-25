@@ -7,7 +7,8 @@
     "build": "next build",
     "test:calendar": "sh scripts/test-calendar-presentation.sh",
     "start": "next start",
-    "generate:vapid": "web-push generate-vapid-keys"
+    "generate:vapid": "web-push generate-vapid-keys",
+    "test:workspace": "sh scripts/test-workspace.sh"
   },
   "dependencies": {
     "@supabase/ssr": "latest",

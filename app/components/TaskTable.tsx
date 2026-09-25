@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { statusLabels, taskStartDate, workTypeLabels, type Task, type TaskInput } from "../../lib/types";
+import { AssigneePicker } from "./AssigneePicker";
 import { DateRangePicker } from "./DateRangePicker";
 import { LinkifiedText } from "./LinkifiedText";
 import { useWorkspace } from "./WorkspaceProvider";
@@ -29,12 +30,16 @@ function taskInput(task: Task): TaskInput {
   return {
     title: task.title,
     owner: task.owner,
+    assigneeIds: task.assigneeIds,
     workType: task.workType,
     status: task.status,
     startDate: task.startDate ?? date,
     deadline: date,
     startTime: task.startTime,
     endTime: task.endTime,
+    reminderDate: task.reminderDate,
+    reminderTime: task.reminderTime,
+    reminderRepeat: task.reminderRepeat,
     format: task.format,
     brief: task.brief
   };
@@ -46,6 +51,7 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
   const [draft, setDraft] = useState<TaskInput | null>(null);
   const [inlineEditing, setInlineEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -64,18 +70,20 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
   };
 
   const destroy = async () => {
-    if (!selected || !window.confirm(`Xoá “${selected.title}”? Thao tác này không thể hoàn tác.`)) return;
+    if (savingRef.current || !selected || !window.confirm(`Xoá “${selected.title}”? Thao tác này không thể hoàn tác.`)) return;
+    savingRef.current = true; setSaving(true); setActionError(null);
     try {
       await removeTask(selected.id);
       setSelected(null);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Không thể xoá công việc.");
-    }
+    } finally { savingRef.current = false; setSaving(false); }
   };
 
   const saveInline = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selected || !draft) return;
+    if (savingRef.current || !selected || !draft) return;
+    savingRef.current = true;
     setSaving(true);
     setActionError(null);
     try {
@@ -86,7 +94,7 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Không thể lưu thay đổi.");
     } finally {
-      setSaving(false);
+      savingRef.current = false; setSaving(false);
     }
   };
 
@@ -97,10 +105,10 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
         ? <div className="empty-row">Chưa có công việc phù hợp.</div>
         : items.map((task) => <button className="row" key={task.id} onClick={() => { setSelected(task); setInlineEditing(false); setDraft(null); setActionError(null); }}>
           <span><em>{task.code}</em><strong>{task.title}</strong><small>{task.format || "Chưa xác định"}{task.brief ? " · Có brief" : ""}</small></span>
-          <span>{task.owner}</span>
-          <span className={task.workType === "inhouse" ? "pill green" : "pill purple"}>{workTypeLabels[task.workType]}</span>
-          <span>{formatDateRange(taskStartDate(task), task.deadline)}</span>
-          <span className={`status ${task.status}`}>{statusLabels[task.status]}</span>
+          <span data-label="Người phụ trách">{task.owner}</span>
+          <span data-label="Loại" className={task.workType === "inhouse" ? "pill green" : "pill purple"}>{workTypeLabels[task.workType]}</span>
+          <span data-label="Thời gian">{formatDateRange(taskStartDate(task), task.deadline)}</span>
+          <span data-label="Trạng thái" className={`status ${task.status}`}>{statusLabels[task.status]}</span>
         </button>)}
     </div>
 
@@ -111,15 +119,13 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
         {inlineEditing && draft ? <form onSubmit={saveInline}>
           <h2>{selected.code} · <input className="inline-title" required value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} /></h2>
           <div className="form-grid inline-detail-form">
-            <label className="field">Người phụ trách<select value={draft.owner} onChange={(event) => {
-              const member = members.find((item) => item.name === event.target.value);
-              setDraft((current) => current ? { ...current, owner: event.target.value, workType: member?.workType ?? current.workType } : current);
-            }}><option value="Chưa phân công">Chưa phân công</option>{members.map((member) => <option key={member.id} value={member.name}>{member.name} · {member.role}</option>)}</select></label>
+            <AssigneePicker members={members} value={draft.assigneeIds ?? []} onChange={(assigneeIds) => updateDraft("assigneeIds", assigneeIds)} disabled={saving}/>
             <div className="field full"><span>Thời gian thực hiện</span><DateRangePicker startDate={draft.startDate} endDate={draft.deadline} onChange={(startDate, deadline) => setDraft((current) => current ? { ...current, startDate, deadline } : current)} /></div>
-            <label className="field">Loại<select value={draft.workType} disabled={draft.owner !== "Chưa phân công"} onChange={(event) => updateDraft("workType", event.target.value as TaskInput["workType"])}>{Object.entries(workTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label className="field">Loại công việc<select value={draft.workType} onChange={(event) => updateDraft("workType", event.target.value as TaskInput["workType"])}>{Object.entries(workTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="field">Trạng thái<select value={draft.status} onChange={(event) => updateDraft("status", event.target.value as TaskInput["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="field">Giờ bắt đầu<select value={draft.startTime} onChange={(event) => { const startTime = event.target.value; setDraft((current) => current ? { ...current, startTime, endTime: current.endTime > startTime ? current.endTime : timeOptions[timeOptions.indexOf(startTime) + 1] } : current); }}>{timeOptions.slice(0, -1).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
             <label className="field">Giờ kết thúc<select value={draft.endTime} onChange={(event) => updateDraft("endTime", event.target.value)}>{timeOptions.filter((time) => time > draft.startTime).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+            <div className="field full reminder-fields"><label><input type="checkbox" checked={Boolean(draft.reminderTime)} onChange={(event) => setDraft((current) => current ? { ...current, reminderDate: event.target.checked ? (current.startDate ?? todayIso()) : null, reminderTime: event.target.checked ? "09:00" : null, reminderRepeat: event.target.checked ? "none" : current.reminderRepeat } : current)}/> Bật nhắc công việc</label>{draft.reminderTime && <div className="reminder-field-grid"><label>Ngày nhắc<input type="date" value={draft.reminderDate ?? ""} max={draft.deadline ?? undefined} onChange={(event) => updateDraft("reminderDate", event.target.value || null)}/></label><label>Giờ nhắc<input type="time" value={draft.reminderTime} onChange={(event) => updateDraft("reminderTime", event.target.value || null)}/></label><label>Lặp lại<select value={draft.reminderRepeat ?? "none"} onChange={(event) => updateDraft("reminderRepeat", event.target.value as TaskInput["reminderRepeat"])}><option value="none">Một lần</option><option value="daily">Mỗi ngày</option><option value="weekly">Mỗi tuần</option></select></label></div>}</div>
             <label className="field">Định dạng<input value={draft.format} onChange={(event) => updateDraft("format", event.target.value)} /></label>
             <label className="field full">Brief nội dung<textarea rows={4} value={draft.brief} onChange={(event) => updateDraft("brief", event.target.value)} /></label>
           </div>
@@ -134,10 +140,11 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
             <span>Thời gian<strong>{selected.startTime} – {selected.endTime}</strong></span>
             <span>Định dạng<strong>{selected.format || "Chưa xác định"}</strong></span>
             <span>Trạng thái<strong>{statusLabels[selected.status]}</strong></span>
+            <span>Nhắc công việc<strong>{selected.reminderDate && selected.reminderTime ? `${formatDate(selected.reminderDate)} · ${selected.reminderTime}${selected.reminderRepeat === "daily" ? " · Mỗi ngày" : selected.reminderRepeat === "weekly" ? " · Mỗi tuần" : ""}` : "Chưa đặt"}</strong></span>
           </div>
           <div className="brief"><b>BRIEF NỘI DUNG</b><p><LinkifiedText text={selected.brief || "Chưa có brief. Hãy bổ sung yêu cầu và thông điệp chính cho công việc này."} /></p></div>
           {actionError && <p className="form-error">{actionError}</p>}
-          <div className="form-actions"><button className="danger" onClick={() => void destroy()}>Xoá</button><span/><button className="secondary" onClick={() => { setDraft(taskInput(selected)); setInlineEditing(true); setActionError(null); }}>Chỉnh sửa</button><button className="primary" onClick={() => setSelected(null)}>Xong</button></div>
+          <div className="form-actions"><button className="danger" disabled={saving} onClick={() => void destroy()}>Xoá</button><span/><button className="secondary" disabled={saving} onClick={() => { setDraft(taskInput(selected)); setInlineEditing(true); setActionError(null); }}>Chỉnh sửa</button><button className="primary" onClick={() => setSelected(null)}>Xong</button></div>
         </>}
       </div>
     </div>}

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { hashPassword, hashToken, verifyPassword } from "./password";
 import { createSupabaseAuthClient, hasSupabaseBackend, supabaseAdmin } from "./supabase-admin";
-import { readWorkspace, writeWorkspace, type StoredMember } from "./workspace-store";
+import { readWorkspace, writeWorkspace, withWorkspaceTransaction, type StoredMember } from "./workspace-store";
 import { initialsFor, type AccessRole, type TeamMemberInput, type WorkType } from "./types";
 
 export const SESSION_COOKIE = "k_mkt_session";
@@ -103,24 +103,26 @@ export async function createFirstAccount(input: Pick<TeamMemberInput, "name" | "
     };
   }
 
-  const data = await readWorkspace();
-  if (data.members.length > 0) throw new Error("Không thể khởi tạo lại workspace đã có người dùng.");
-  const member: StoredMember = {
-    id: randomBytes(16).toString("hex"),
-    name,
-    role: input.role.trim() || "Quản trị workspace",
-    workType: input.workType ?? "inhouse",
-    username,
-    accessRole: "admin",
-    avatarUrl: input.avatarUrl,
-    mustChangePassword: true,
-    initials: initialsFor(name),
-    passwordHash: await hashPassword(input.password),
-    createdAt: new Date().toISOString()
-  };
-  data.members.push(member);
-  await writeWorkspace(data);
-  return member;
+  return withWorkspaceTransaction(async () => {
+    const data = await readWorkspace();
+    if (data.members.length > 0) throw new Error("Không thể khởi tạo lại workspace đã có người dùng.");
+    const member: StoredMember = {
+      id: randomBytes(16).toString("hex"),
+      name,
+      role: input.role.trim() || "Quản trị workspace",
+      workType: input.workType ?? "inhouse",
+      username,
+      accessRole: "admin",
+      avatarUrl: input.avatarUrl,
+      mustChangePassword: true,
+      initials: initialsFor(name),
+      passwordHash: await hashPassword(input.password),
+      createdAt: new Date().toISOString()
+    };
+    data.members.push(member);
+    await writeWorkspace(data);
+    return member;
+  });
 }
 
 export async function authenticate(username: string, password: string): Promise<{ token: string; refreshToken?: string; user: SessionUser } | null> {
@@ -135,14 +137,16 @@ export async function authenticate(username: string, password: string): Promise<
     if (!profile) return null;
     return { token: data.session.access_token, refreshToken: data.session.refresh_token, user: toSupabaseUser(profile) };
   }
-  const data = await readWorkspace();
-  const member = data.members.find((item) => item.username === normalizedUsername);
-  if (!member || !await verifyPassword(password, member.passwordHash)) return null;
-  const token = randomBytes(32).toString("base64url");
-  data.sessions = data.sessions.filter((session) => Date.parse(session.expiresAt) > Date.now());
-  data.sessions.push({ tokenHash: hashToken(token), memberId: member.id, expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString() });
-  await writeWorkspace(data);
-  return { token, user: toLocalUser(member) };
+  return withWorkspaceTransaction(async () => {
+    const data = await readWorkspace();
+    const member = data.members.find((item) => item.username === normalizedUsername);
+    if (!member || !await verifyPassword(password, member.passwordHash)) return null;
+    const token = randomBytes(32).toString("base64url");
+    data.sessions = data.sessions.filter((session) => Date.parse(session.expiresAt) > Date.now());
+    data.sessions.push({ tokenHash: hashToken(token), memberId: member.id, expiresAt: new Date(Date.now() + SESSION_DURATION_MS).toISOString() });
+    await writeWorkspace(data);
+    return { token, user: toLocalUser(member) };
+  });
 }
 
 export async function refreshAuthentication(refreshToken?: string | null): Promise<{ token: string; refreshToken: string; user: SessionUser } | null> {
@@ -176,7 +180,9 @@ export async function getSessionUser(token?: string | null): Promise<SessionUser
 export async function revokeSession(token?: string | null) {
   if (!token) return;
   if (hasSupabaseBackend) return;
-  const data = await readWorkspace();
-  data.sessions = data.sessions.filter((session) => session.tokenHash !== hashToken(token));
-  await writeWorkspace(data);
+  return withWorkspaceTransaction(async () => {
+    const data = await readWorkspace();
+    data.sessions = data.sessions.filter((session) => session.tokenHash !== hashToken(token));
+    await writeWorkspace(data);
+  });
 }

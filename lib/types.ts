@@ -5,12 +5,17 @@ export const ACCESS_ROLES = ["admin", "employee"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 export type WorkType = (typeof WORK_TYPES)[number];
 export type AccessRole = (typeof ACCESS_ROLES)[number];
+export type ReminderRepeat = "none" | "daily" | "weekly";
 
 export type Task = {
   id: string;
   code: string;
   title: string;
   owner: string;
+  assigneeIds: string[];
+  reminderDate: string | null;
+  reminderTime: string | null;
+  reminderRepeat: ReminderRepeat;
   workType: WorkType;
   status: TaskStatus;
   startDate: string | null;
@@ -36,7 +41,7 @@ export type TeamMember = {
   createdAt: string;
 };
 
-export type TaskInput = Pick<Task, "title" | "owner" | "workType" | "status" | "startDate" | "deadline" | "startTime" | "endTime" | "format" | "brief">;
+export type TaskInput = Pick<Task, "title" | "owner" | "workType" | "status" | "startDate" | "deadline" | "startTime" | "endTime" | "format" | "brief"> & { assigneeIds?: string[]; reminderDate?: string | null; reminderTime?: string | null; reminderRepeat?: ReminderRepeat };
 export type TeamMemberInput = Pick<TeamMember, "name" | "role" | "workType" | "username" | "accessRole" | "avatarUrl"> & { password?: string };
 
 export type NotificationKind = "task_assigned" | "task_due" | "task_overdue";
@@ -50,6 +55,9 @@ export type WorkspaceNotification = {
   body: string;
   eventKey: string;
   readAt: string | null;
+  remindedAt?: string | null;
+  scheduledAt?: string | null;
+  scheduledRepeat?: ReminderRepeat;
   createdAt: string;
 };
 

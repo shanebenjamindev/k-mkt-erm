@@ -39,7 +39,7 @@ Trang Team và dashboard tự đánh giá theo mỗi người: task đang mở, 
 Ứng dụng có thể cài trực tiếp trên iPhone như một PWA, không cần đổi giao diện: mở website bằng Safari, chọn **Chia sẻ → Thêm vào Màn hình chính**, mở app từ icon mới tạo và bấm chuông **Bật noti iPhone**.
 
 - Khi task được giao, người phụ trách nhận được thông báo trong app; thiết bị đã đăng ký sẽ nhận push notification.
-- Endpoint `GET` hoặc `POST` `/api/notifications/remind` tạo reminder cho task đến hạn/quá hạn. Hãy gọi endpoint này mỗi ngày bằng cron của nền tảng deploy, kèm header `Authorization: Bearer <CRON_SECRET>`.
+- Endpoint `GET` hoặc `POST` `/api/notifications/remind` tạo reminder cho task đến hạn/quá hạn và thực thi lịch nhắc đã đặt. Cron trong `vercel.json` gọi mỗi phút với header `Authorization: Bearer <CRON_SECRET>`; nền tảng triển khai cần hỗ trợ tần suất này để gửi đúng giờ.
 - Push nền chỉ hoạt động trên HTTPS và sau khi app được thêm vào Màn hình chính trên iOS 16.4 trở lên.
 
 Tạo VAPID keys một lần rồi điền vào `.env.local` (không commit private key):
@@ -48,7 +48,7 @@ Tạo VAPID keys một lần rồi điền vào `.env.local` (không commit priv
 npx web-push generate-vapid-keys
 ```
 
-Điền `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` và `CRON_SECRET`. Nếu chưa có các biến này, chuông vẫn hiển thị thông báo trong app nhưng push nền sẽ báo chưa cấu hình.
+Điền `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` và `VAPID_SUBJECT` vào môi trường server; tên cũ `NEXT_PUBLIC_VAPID_PUBLIC_KEY` vẫn được hỗ trợ. Hai khóa phải cùng một cặp. Thiết lập riêng các biến này cho Vercel Production rồi triển khai lại; chỉ chỉnh `.env.local` không ảnh hưởng server Vercel. `CRON_SECRET` dùng cho cron reminder, không cần để bật push. Không thay cặp khóa production đang dùng nếu thiết bị đã đăng ký. Nếu thiếu khóa, thông báo trong app vẫn hoạt động nhưng push sẽ báo chưa cấu hình.
 
 ## Supabase khi triển khai production
 
@@ -61,3 +61,33 @@ npm run build
 npm start
 ```
 # k-mkt-erm
+
+
+## Giao diện kính và đồng bộ công việc/thông báo
+
+- Theme đỏ–trắng ở `app/glass.css`, dùng nền gradient, kính bán trong suốt, blur và chế độ giảm chuyển động. Giữ màu trạng thái để phân biệt tiến độ.
+- Badge công việc tính từ cùng nguồn `WorkspaceProvider` với danh sách: mọi task khác `completed`, không phụ thuộc bộ lọc. Thay đổi trạng thái cập nhật ngay và khôi phục khi API lỗi; số 0 được ẩn, trên 99 hiển thị `99+` (nhãn truy cập vẫn có tổng đầy đủ).
+- Workspace và thông báo tải nền mỗi 30 giây khi tab đang hiển thị, khi trở lại tab hoặc có mạng. Thay đổi trong tab khác được đồng bộ qua sự kiện storage. Đây là polling, không phải WebSocket.
+- Tab hiển thị `(n) K-MKT Workspace` theo tổng chưa đọc trên server, kể cả thông báo nằm ngoài 40 mục gần nhất. “Đọc tất cả” xử lý toàn bộ thông báo của tài khoản.
+- `POST /api/notifications/:id/remind` gửi lại thông báo của chính người đang đăng nhập, đặt lại chưa đọc và dùng push nếu đã cấu hình. Cooldown 120 giây được kiểm tra nguyên tử phía server, trả HTTP 429 kèm `Retry-After`. Giữ nguyên endpoint cron `/api/notifications/remind`.
+
+**Supabase đang chạy:** áp dụng `supabase/migrations/20260925_notification_reminders.sql` trước khi deploy code. Migration thêm `reminded_at` cho nút nhắc lại và RPC tùy chọn. Việc tải thông báo hoạt động trực tiếp với bảng Supabase hiện có, kể cả khi chưa áp dụng migration. File đã được chuẩn bị trong repository; chưa áp dụng vào database đang chạy. Local JSON không cần migration. Kho local được tuần tự hóa trong một tiến trình; production nhiều instance cần Supabase.
+
+Kiểm tra:
+
+```bash
+npm run test:calendar
+npm run test:workspace
+npx tsc --noEmit
+npm run build
+```
+
+`test:workspace` tạo dữ liệu trong thư mục tạm và không dùng credentials Supabase. Kiểm tra HTTP bổ sung: `node scripts/tests/http-smoke.cjs http://127.0.0.1:3107`, **chỉ chạy với một bản app sao chép riêng, không có `.env.local`/`.data` và chưa có tài khoản**; script tạo tài khoản QA và dữ liệu thử.
+
+## Nhiều người phụ trách trên một task
+
+Task lưu danh sách `assigneeIds`; form tạo/sửa cho chọn nhiều nhân viên, lọc và đánh giá sức tải theo từng người. In-house/Outsource là **loại công việc**, được chọn độc lập trên task. Trường `team_members.work_type` cũ được giữ trong database để tương thích dữ liệu, nhưng không còn được dùng để phân loại nhân viên trong giao diện hoặc tự đổi loại task.
+
+Với Supabase production, áp dụng [`supabase/migrations/20260925_task_assignees.sql`](./supabase/migrations/20260925_task_assignees.sql) **trước khi triển khai mã mới**. Migration thêm `tasks.assignee_ids` và chuyển task một người cũ sang ID nhân viên tương ứng. Nếu trước đây có nhiều nhân viên trùng tên, cần kiểm tra lại phân công của các task cũ sau migration vì cột tên cũ không đủ thông tin để phân biệt họ. Local JSON được nâng cấp tự động khi đọc.
+
+Task có thể đặt ngày, giờ nhắc và lặp một lần/mỗi ngày/mỗi tuần tới hạn task; task hoàn thành sẽ không được nhắc. Trong trung tâm thông báo, “Nhắc nhở lại” cho gửi ngay hoặc đặt lịch lặp riêng cho thông báo đó. Áp dụng thêm [`supabase/migrations/20260925_scheduled_reminders.sql`](./supabase/migrations/20260925_scheduled_reminders.sql) trước khi triển khai. Lịch vẫn tạo thông báo trong app khi push chưa được cấu hình; push chỉ được gửi tới thiết bị đã đăng ký.

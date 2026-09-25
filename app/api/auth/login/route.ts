@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as { username?: unknown; password?: unknown };
-    if (typeof body.username !== "string" || typeof body.password !== "string") return NextResponse.json({ error: "Vui lòng nhập username và mật khẩu." }, { status: 400 });
+    const body = await request.json().catch(() => null) as { username?: unknown; password?: unknown } | null;
+    if (!body || typeof body.username !== "string" || typeof body.password !== "string") return NextResponse.json({ error: "Vui lòng nhập username và mật khẩu." }, { status: 400 });
     const result = await authenticate(body.username, body.password);
     if (!result) {
       const setupRequired = !(await hasWorkspaceUsers());

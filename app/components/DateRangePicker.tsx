@@ -6,14 +6,16 @@ type Props = {
   startDate: string | null;
   endDate: string | null;
   onChange: (startDate: string, endDate: string) => void;
+  onComplete?: (startDate: string, endDate: string) => void;
   label?: string;
+  openOnMount?: boolean;
 };
 
 const weekdays = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
-export function DateRangePicker({ startDate, endDate, onChange, label = "Từ ngày – đến ngày" }: Props) {
+export function DateRangePicker({ startDate, endDate, onChange, onComplete, label = "Từ ngày – đến ngày", openOnMount = false }: Props) {
   const root = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openOnMount);
   const [selectingEnd, setSelectingEnd] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [month, setMonth] = useState(() => monthStart(startDate ?? endDate ?? toIso(new Date())));
@@ -25,6 +27,7 @@ export function DateRangePicker({ startDate, endDate, onChange, label = "Từ ng
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, []);
+  useEffect(() => { if (openOnMount) setOpen(true); }, [openOnMount]);
 
   const days = useMemo(() => calendarDays(month), [month]);
   const rangeEnd = selectingEnd ? hoveredDate ?? endDate : endDate;
@@ -38,6 +41,7 @@ export function DateRangePicker({ startDate, endDate, onChange, label = "Từ ng
     const start = startDate && date >= startDate ? startDate : date;
     const end = startDate && date >= startDate ? date : startDate ?? date;
     onChange(start, end);
+    onComplete?.(start, end);
     setSelectingEnd(false);
     setHoveredDate(null);
     setOpen(false);
@@ -63,7 +67,7 @@ export function DateRangePicker({ startDate, endDate, onChange, label = "Từ ng
         const isEnd = date === rangeEnd;
         return <button type="button" key={date} onClick={() => chooseDate(date)} onMouseEnter={() => selectingEnd && setHoveredDate(date)} className={`${inCurrentMonth ? "" : "outside"} ${inRange ? "in-range" : ""} ${isStart ? "range-start" : ""} ${isEnd ? "range-end" : ""}`.trim()}><span>{date.slice(8, 10)}</span></button>;
       })}</div>
-      <div className="date-range-footer"><button type="button" onClick={() => { const today = toIso(new Date()); onChange(today, today); setMonth(monthStart(today)); setSelectingEnd(true); }}>Hôm nay</button><button type="button" onClick={() => setOpen(false)}>Xong</button></div>
+      <div className="date-range-footer"><button type="button" onClick={() => { const today = toIso(new Date()); onChange(today, today); setMonth(monthStart(today)); setSelectingEnd(true); }}>Hôm nay</button><button type="button" onClick={() => { if (startDate && endDate) onComplete?.(startDate, endDate); setSelectingEnd(false); setHoveredDate(null); setOpen(false); }}>Xong</button></div>
     </div>}
   </div>;
 }

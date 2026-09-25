@@ -1,0 +1,37 @@
+/* WordPress-inspired adaptive admin navigation. */
+.shell{min-width:0}
+.sidebar,.content{min-width:0}
+.sidebar{flex:0 0 245px}
+.content{min-width:0}
+.admin-menu-toggle,.mobile-menu-backdrop{display:none}
+
+@media (max-width:1200px) and (min-width:851px){
+  .sidebar{width:76px;flex-basis:76px;padding:20px 9px;align-items:center}
+  .brand{justify-content:center;margin:0 0 30px}
+  .brand>div,.sidebar nav>p,.nav-label,.profile .profile-link>div,.profile .logout{display:none}
+  .sidebar nav{width:100%}
+  .nav{position:relative;display:grid;min-height:46px;place-items:center;margin:3px 0;padding:12px}
+  .nav b{position:absolute;top:4px;right:4px;float:none;min-width:15px;border-radius:8px;background:#edf1f6;color:#667085;font-size:9px;line-height:15px;text-align:center}
+  .nav.active b{background:#fff;color:#c32020}
+  .nav-icon{display:grid;place-items:center}
+  .profile{width:100%;justify-content:center;padding:16px 0 0}
+  .profile-link{justify-content:center}
+  .content{padding-right:30px;padding-left:30px}
+  .content>header{margin-right:-30px;margin-left:-30px;padding-right:30px;padding-left:30px}
+}
+
+@media (max-width:850px){
+  .sidebar{display:flex;position:fixed;z-index:1101;top:0;bottom:0;left:0;width:min(280px,calc(100vw - 52px));padding:24px 16px;overflow-y:auto;transform:translateX(-102%);transition:transform .2s ease;box-shadow:14px 0 32px #17203328}
+  .sidebar.mobile-open{transform:translateX(0)}
+  .mobile-menu-backdrop{position:fixed;z-index:1100;inset:0;display:block;border:0;background:#17203366;cursor:default}
+  .content{width:100%;padding:0 18px 30px}
+  .content>header{height:62px;margin:0 -18px 25px;padding:0 18px;gap:10px}
+  .admin-menu-toggle{display:grid;width:34px;height:34px;flex:none;place-content:center;gap:4px;border:1px solid #dfe4ed;border-radius:7px;background:#fff;color:#526074;cursor:pointer}
+  .admin-menu-toggle span{display:block;width:15px;height:2px;border-radius:9px;background:currentColor}
+  .workspace-crumb{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .header-actions{margin-left:auto}
+}
+
+@media (max-width:430px){
+  .workspace-crumb{max-width:calc(100vw - 160px)}
+}

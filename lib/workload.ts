@@ -43,17 +43,8 @@ function assessmentLevel(activeTasks: number, dueSoon: number, overdue: number):
 
 export function assessWorkload(tasks: Task[], members: TeamMember[], asOf = new Date()): WorkloadAssessment[] {
   const today = vietnamToday(asOf);
-  const knownPeople = new Map(members.map((member) => [member.name.trim().toLocaleLowerCase(), member]));
-
-  for (const task of tasks) {
-    const key = task.owner.trim().toLocaleLowerCase();
-    if (key && key !== "chưa phân công" && !knownPeople.has(key)) {
-      knownPeople.set(key, { id: `owner-${key}`, name: task.owner, role: "Chưa có hồ sơ thành viên", workType: task.workType, username: `owner-${key}`, accessRole: "employee", mustChangePassword: false, initials: task.owner.split(/\s+/).slice(-2).map((word) => word[0]).join("").toUpperCase(), createdAt: task.createdAt });
-    }
-  }
-
-  return [...knownPeople.values()].map((member) => {
-    const assigned = tasks.filter((task) => task.owner.trim().toLocaleLowerCase() === member.name.trim().toLocaleLowerCase());
+  return members.map((member) => {
+    const assigned = tasks.filter((task) => task.assigneeIds?.includes(member.id) || (!task.assigneeIds && task.owner === member.name));
     const active = assigned.filter((task) => task.status !== "completed");
     const overdue = active.filter((task) => task.deadline && task.deadline < today).length;
     const dueSoon = active.filter((task) => task.deadline && daysBetween(today, task.deadline) >= 0 && daysBetween(today, task.deadline) <= 2).length;

@@ -19,12 +19,16 @@ create table if not exists public.tasks (
   code text not null unique,
   title text not null,
   owner_name text not null default 'Chưa phân công',
+  assignee_ids uuid[] not null default '{}',
   work_type text not null check (work_type in ('inhouse', 'outsource')),
   status text not null default 'todo' check (status in ('todo', 'in_progress', 'pending_review', 'completed')),
   start_date date,
   deadline date,
   start_time time not null default '09:00',
   end_time time not null default '11:00',
+  reminder_date date,
+  reminder_time time,
+  reminder_repeat text not null default 'none' check (reminder_repeat in ('none', 'daily', 'weekly')),
   format text not null default '',
   brief text not null default '',
   created_at timestamptz not null default now(),
@@ -33,6 +37,13 @@ create table if not exists public.tasks (
 
 create index if not exists tasks_deadline_idx on public.tasks (deadline);
 create index if not exists tasks_status_idx on public.tasks (status);
+
+-- Existing single-owner tasks keep their assignment when enabling multiple people.
+alter table public.tasks add column if not exists assignee_ids uuid[] not null default '{}';
+update public.tasks t set assignee_ids = array[m.id]
+from public.team_members m
+where t.owner_name = m.name and cardinality(t.assignee_ids) = 0;
+create index if not exists tasks_assignee_ids_idx on public.tasks using gin (assignee_ids);
 
 -- Safe for an existing workspace: task records created before ranges are one-day tasks.
 alter table public.tasks add column if not exists start_date date;
@@ -45,6 +56,9 @@ update public.tasks set end_time = '15:00' where end_time is null and start_time
 update public.tasks set end_time = '17:00' where end_time is null and start_time = '15:00';
 update public.tasks set end_time = '19:00' where end_time is null;
 alter table public.tasks alter column end_time set not null;
+alter table public.tasks add column if not exists reminder_date date;
+alter table public.tasks add column if not exists reminder_time time;
+alter table public.tasks add column if not exists reminder_repeat text not null default 'none';
 
 create table if not exists public.workspace_notifications (
   id uuid primary key default gen_random_uuid(),
@@ -69,6 +83,11 @@ create table if not exists public.push_subscriptions (
 
 create index if not exists workspace_notifications_user_created_idx on public.workspace_notifications (user_id, created_at desc);
 create index if not exists workspace_notifications_task_idx on public.workspace_notifications (task_id);
+-- Required for the per-notification reminder cooldown; safe on existing data.
+alter table public.workspace_notifications add column if not exists reminded_at timestamptz;
+alter table public.workspace_notifications add column if not exists scheduled_at timestamptz;
+alter table public.workspace_notifications add column if not exists scheduled_repeat text not null default 'none';
+create index if not exists workspace_notifications_scheduled_idx on public.workspace_notifications (scheduled_at) where scheduled_at is not null;
 create index if not exists push_subscriptions_user_idx on public.push_subscriptions (user_id);
 
 create or replace function public.set_updated_at()
@@ -87,6 +106,34 @@ alter table public.tasks enable row level security;
 alter table public.team_members enable row level security;
 alter table public.workspace_notifications enable row level security;
 alter table public.push_subscriptions enable row level security;
+
+-- Fetch the visible feed and the total unread count from the same SQL snapshot.
+-- The server authenticates p_user_id before calling this service-role-only RPC.
+create or replace function public.get_workspace_notification_feed(p_user_id uuid)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'notifications', coalesce((
+      select jsonb_agg(to_jsonb(recent) order by recent.created_at desc, recent.id desc)
+      from (
+        select * from public.workspace_notifications
+        where user_id = p_user_id
+        order by created_at desc, id desc
+        limit 40
+      ) recent
+    ), '[]'::jsonb),
+    'unread_count', (
+      select count(*) from public.workspace_notifications
+      where user_id = p_user_id and read_at is null
+    )
+  );
+$$;
+revoke all on function public.get_workspace_notification_feed(uuid) from public, anon, authenticated;
+grant execute on function public.get_workspace_notification_feed(uuid) to service_role;
 
 -- Add RLS policies tailored to your organization before exposing tables to clients.
 -- Passwords are handled only by Supabase Auth (auth.users); never add a password

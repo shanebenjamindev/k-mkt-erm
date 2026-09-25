@@ -14,8 +14,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as { name?: unknown; role?: unknown; username?: unknown; password?: unknown };
-    if (typeof body.name !== "string" || typeof body.role !== "string" || typeof body.username !== "string" || typeof body.password !== "string") {
+    const body = await request.json().catch(() => null) as { name?: unknown; role?: unknown; username?: unknown; password?: unknown } | null;
+    if (!body || typeof body.name !== "string" || typeof body.role !== "string" || typeof body.username !== "string" || typeof body.password !== "string") {
       return NextResponse.json({ error: "Vui lòng nhập họ tên, chức vụ, username và mật khẩu." }, { status: 400 });
     }
     const member = await createFirstAccount({ name: body.name, role: body.role, username: body.username, password: body.password });

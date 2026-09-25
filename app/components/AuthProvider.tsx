@@ -1,11 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { SessionUser } from "../../lib/auth-repository";
+import { requestJson, RequestError } from "../../lib/client-request";
 
 type AuthContextValue = {
   user: SessionUser | null;
   loading: boolean;
+  error: string | null;
   setupRequired: boolean;
   login: (username: string, password: string) => Promise<SessionUser>;
   setup: (name: string, role: string, username: string, password: string) => Promise<SessionUser>;
@@ -18,53 +20,67 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [setupRequired, setSetupRequired] = useState(false);
+  const revision = useRef(0);
+  const authenticating = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (authenticating.current) return;
+    const version = ++revision.current;
     try {
-      const response = await fetch("/api/auth/me", { cache: "no-store" });
-      if (response.status === 401) {
+      let body: { user: SessionUser };
+      try { body = await requestJson<{ user: SessionUser }>("/api/auth/me", { cache: "no-store" }); }
+      catch (cause) {
+        if (!(cause instanceof RequestError) || cause.status !== 401) throw cause;
+        if (version !== revision.current) return;
         setUser(null);
-        const setupResponse = await fetch("/api/auth/setup", { cache: "no-store" });
-        const setup = await setupResponse.json() as { setupRequired?: boolean };
-        setSetupRequired(Boolean(setup.setupRequired));
+        const setup = await requestJson<{ setupRequired: boolean }>("/api/auth/setup", { cache: "no-store" });
+        if (version === revision.current) { setSetupRequired(setup.setupRequired); setError(null); }
         return;
       }
-      const body = await response.json() as { user?: SessionUser; error?: string };
-      if (!response.ok) throw new Error(body.error ?? "Không thể kiểm tra phiên đăng nhập.");
-      setUser(body.user ?? null);
+      if (version !== revision.current) return;
+      setUser(body.user);
       setSetupRequired(false);
-    } finally { setLoading(false); }
+      setError(null);
+    } catch (cause) {
+      if (version === revision.current) setError(cause instanceof Error ? cause.message : "Không thể kiểm tra phiên đăng nhập.");
+      throw cause;
+    } finally { if (version === revision.current) setLoading(false); }
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    void refresh().catch(() => undefined);
+    return () => { revision.current++; };
+  }, [refresh]);
+
+  const authenticate = useCallback(async (url: string, input: object) => {
+    if (authenticating.current) throw new Error("Yêu cầu đăng nhập đang được xử lý.");
+    authenticating.current = true;
+    const version = ++revision.current;
+    try {
+      const body = await requestJson<{ user: SessionUser }>(url, { method: "POST", body: JSON.stringify(input) });
+      if (!body.user) throw new Error("Phản hồi đăng nhập không hợp lệ.");
+      if (version === revision.current) { setUser(body.user); setSetupRequired(false); setError(null); }
+      return body.user;
+    } finally { authenticating.current = false; if (version === revision.current) setLoading(false); }
+  }, []);
+
+  const logout = useCallback(async () => {
+    if (authenticating.current) throw new Error("Vui lòng đợi yêu cầu đăng nhập hoàn tất.");
+    authenticating.current = true;
+    const version = ++revision.current;
+    try {
+      await requestJson("/api/auth/logout", { method: "POST" });
+      if (version === revision.current) { setUser(null); setError(null); setSetupRequired(false); }
+    } finally { authenticating.current = false; }
+  }, []);
 
   const value = useMemo<AuthContextValue>(() => ({
-    user, loading, setupRequired, refresh,
-    login: async (username, password) => {
-      const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
-      const body = await response.json() as { user?: SessionUser; error?: string; setupRequired?: boolean };
-      if (!response.ok || !body.user) {
-        if (body.setupRequired) setSetupRequired(true);
-        throw new Error(body.error ?? "Không thể đăng nhập.");
-      }
-      setUser(body.user);
-      setSetupRequired(false);
-      return body.user;
-    },
-    setup: async (name, role, username, password) => {
-      const response = await fetch("/api/auth/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, role, username, password }) });
-      const body = await response.json() as { user?: SessionUser; error?: string };
-      if (!response.ok || !body.user) throw new Error(body.error ?? "Không thể khởi tạo workspace.");
-      setUser(body.user);
-      setSetupRequired(false);
-      return body.user;
-    },
-    logout: async () => {
-      await fetch("/api/auth/logout", { method: "POST" });
-      setUser(null);
-    }
-  }), [user, loading, setupRequired, refresh]);
+    user, loading, error, setupRequired, refresh, logout,
+    login: (username, password) => authenticate("/api/auth/login", { username, password }),
+    setup: (name, role, username, password) => authenticate("/api/auth/setup", { name, role, username, password })
+  }), [user, loading, error, setupRequired, refresh, logout, authenticate]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
