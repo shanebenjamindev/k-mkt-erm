@@ -7,12 +7,15 @@ import { useAuth } from "./AuthProvider";
 import { useWorkspace } from "./WorkspaceProvider";
 import { Icon, type IconName } from "./Icon";
 import { NotificationCenter } from "./NotificationCenter";
+import { useProjectSettings } from "./ProjectSettingsProvider";
+import { can } from "../../lib/permissions";
+import { DriveImage } from "./DriveImage";
 
 const links: Array<{ href: string; icon: IconName; label: string }> = [
   { href: "/", icon: "dashboard", label: "Tổng quan" },
   { href: "/tasks", icon: "tasks", label: "Tất cả công việc" },
   { href: "/calendar", icon: "calendar", label: "Lịch sản xuất" },
-  { href: "/briefs", icon: "briefs", label: "Brief & tài liệu" },
+  { href: "/briefs", icon: "briefsNav", label: "Brief & tài liệu" },
   { href: "/drive", icon: "drive", label: "Video & Drive" }
 ];
 
@@ -20,6 +23,7 @@ export function WorkspaceShell({ children, title = "Workspace" }: { children: Re
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -27,6 +31,7 @@ export function WorkspaceShell({ children, title = "Workspace" }: { children: Re
   const signingOutRef = useRef(false);
   const { user, loading: authLoading, error: authError, refresh: refreshAuth, logout } = useAuth();
   const { tasks, members } = useWorkspace();
+  const { settings, logoRevision } = useProjectSettings();
   const pendingTaskCount = tasks.reduce((count, task) => count + Number(task.status !== "completed"), 0);
 
   useEffect(() => {
@@ -63,7 +68,7 @@ export function WorkspaceShell({ children, title = "Workspace" }: { children: Re
 
   if (!authLoading && !user && authError) return <main className="auth-loading"><div className="auth-error" role="alert"><p>{authError}</p><button className="secondary" onClick={() => void refreshAuth().catch(() => undefined)}>Thử lại</button></div></main>;
   if (authLoading || !user) return <main className="auth-loading" role="status">Đang kiểm tra phiên đăng nhập…</main>;
-  const isAdmin = user.accessRole === "admin";
+  const isAdmin = can(user, "member.manage");
   const closeMobileMenu = () => setMobileMenuOpen(false);
   const signOut = async () => {
     if (signingOutRef.current) return;
@@ -82,10 +87,13 @@ export function WorkspaceShell({ children, title = "Workspace" }: { children: Re
     }
   };
 
-  return <main className="shell">
+  return <main className={`shell${navigationCollapsed ? " navigation-collapsed" : ""}`}>
     {mobileMenuOpen && <button className="mobile-menu-backdrop" aria-label="Đóng menu" tabIndex={-1} onClick={closeMobileMenu}/>}
     <aside ref={sidebarRef} id="workspace-navigation" className={`sidebar${mobileMenuOpen ? " mobile-open" : ""}`} aria-label="Điều hướng chính" role={mobileMenuOpen ? "dialog" : undefined} aria-modal={mobileMenuOpen || undefined}>
-      <Link href="/" className="brand" onClick={closeMobileMenu} title="K-MKT Workspace"><span className="brand-mark">K</span><div><strong>K-MKT Workspace</strong><small>TEAM WORKSPACE</small></div></Link>
+      <div className="sidebar-brand-row">
+        <Link href="/" className="brand" onClick={closeMobileMenu} title={settings.projectName}><span className="brand-mark">{settings.projectLogoUrl ? <DriveImage src={settings.projectLogoUrl} alt="" fallback="K" cacheKey={logoRevision}/> : "K"}</span><div><strong>{settings.projectName}</strong><small>{settings.projectDescription || "TEAM WORKSPACE"}</small></div></Link>
+        <button className="workspace-sidebar-collapse" type="button" aria-label={navigationCollapsed ? "Mở rộng sidebar Workspace" : "Thu gọn sidebar Workspace"} aria-expanded={!navigationCollapsed} onClick={() => setNavigationCollapsed((value) => !value)}>{navigationCollapsed ? "›" : "‹"}</button>
+      </div>
       <button className="mobile-menu-close" type="button" aria-label="Đóng menu" onClick={closeMobileMenu}><Icon name="close" size={17}/></button>
       <nav>
         <p>WORKSPACE</p>
@@ -101,7 +109,7 @@ export function WorkspaceShell({ children, title = "Workspace" }: { children: Re
     <section className="content">
       <header className="workspace-header">
         <button ref={menuButtonRef} className="admin-menu-toggle" type="button" aria-label={mobileMenuOpen ? "Đóng menu" : "Mở menu"} aria-expanded={mobileMenuOpen} aria-controls="workspace-navigation" onClick={() => setMobileMenuOpen((open) => !open)}><span/><span/><span/></button>
-        <span className="workspace-crumb">Marketing team <span aria-hidden="true">/</span> <b>{title}</b></span>
+        <span className="workspace-crumb">{settings.projectName} <span aria-hidden="true">/</span> <b>{title}</b></span>
         <div className="header-actions">
           <Link href="/tasks" className="header-task-link" title={`${pendingTaskCount} công việc chưa hoàn thành`} aria-label={`Công việc: ${pendingTaskCount} chưa hoàn thành`}>
             <Icon name="tasks" size={19}/>

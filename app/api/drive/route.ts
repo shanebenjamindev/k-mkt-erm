@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "../../../lib/auth";
 import { createDriveFolder, driveStatus, listDriveItems, trashDriveItem, updateDriveItem } from "../../../lib/google-drive";
+import { can } from "../../../lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function adminOnly(user: Awaited<ReturnType<typeof currentUser>>) {
-  return user?.accessRole === "admin";
+  return can(user, "drive.manage");
 }
 
 export async function GET(request: NextRequest) {

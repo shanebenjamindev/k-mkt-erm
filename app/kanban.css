@@ -23,7 +23,6 @@
 .kanban-column.drop-target .kanban-column-body{background:#eef5ff}
 .kanban-card-main{display:grid;width:100%;gap:7px;border:0;background:transparent;padding:12px;text-align:left;color:#172033;cursor:pointer}
 .kanban-card-top{display:flex;align-items:center;justify-content:space-between;gap:7px}
-.kanban-card-top em{color:#8d98a9;font-size:10px;font-style:normal;font-weight:800}
 .kanban-card-top i{border-radius:99px;padding:3px 6px;font-size:9px;font-style:normal;font-weight:800}
 .kanban-card-top i.inhouse{background:#e5f8ee;color:#2aa970}
 .kanban-card-top i.outsource{background:#eee9ff;color:#7d5bdf}

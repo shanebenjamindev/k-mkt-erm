@@ -2,8 +2,9 @@ self.addEventListener("push", (event) => {
   const payload = event.data ? event.data.json() : {};
   event.waitUntil(self.registration.showNotification(payload.title || "K-MKT Workspace", {
     body: payload.body || "Bạn có một cập nhật mới.",
-    icon: "/icon",
-    badge: "/icon",
+    icon: "/api/brand-icon",
+    badge: "/api/brand-icon",
+    tag: payload.tag || "k-mkt-notification",
     silent: false,
     vibrate: [120, 60, 120],
     renotify: true,

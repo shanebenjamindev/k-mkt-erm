@@ -55,10 +55,10 @@ export function TaskKanban({ items, openTaskId, onTaskOpened }: Props) {
           <div className="kanban-column-body">
             {tasks.length ? tasks.map((task) => <article className={`kanban-card ${draggedId === task.id ? "dragging" : ""}`} key={task.id} draggable={!updatingIds.has(task.id)} onDragStart={(event) => { event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", task.id); setDraggedId(task.id); }} onDragEnd={() => { setDraggedId(null); setDropStatus(null); }}>
               <button type="button" className="kanban-card-main" onClick={() => setSelected(task)} aria-label={`Mở ${task.title}`}>
-                <span className="kanban-card-top"><em>{task.code}</em><i className={task.workType}>{workTypeLabels[task.workType]}</i></span>
+                <span className="kanban-card-top"><i className={task.workType}>{workTypeLabels[task.workType]}</i></span>
                 <strong>{task.title}</strong>
                 <small>{task.format || "Chưa xác định định dạng"}</small>
-                <span className="kanban-card-info"><b>{task.owner}</b><time>{formatRange(task)} · {task.startTime}</time></span>
+                <span className="kanban-card-info"><b>{task.owner}</b><time>{formatRange(task)}</time></span>
               </button>
               <label className="kanban-status-select"><span className="sr-only">Đổi trạng thái {task.title}</span><select value={task.status} disabled={updatingIds.has(task.id)} onChange={(event) => void changeStatus(task, event.target.value as TaskStatus)}>{TASK_STATUSES.map((value) => <option value={value} key={value}>{statusLabels[value]}</option>)}</select></label>
             </article>) : <p className="kanban-empty">Chưa có công việc.</p>}

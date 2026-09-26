@@ -159,11 +159,11 @@ function CalendarEventCard({ event, onSelect, onQuickStatus, className = "", sty
     "--event-alert-text": calendarAlertTokens.text,
     ...style
   } as EventStyle;
-  const detail = `${event.title}. ${rangeLabel(event)} · ${event.startTime} – ${event.endTime}. ${presentation.typeLabel}. ${presentation.status.label}. ${event.owner || "Chưa phân công"}${presentation.isOverdue ? ". Quá hạn" : ""}`;
+  const detail = `${event.title}. ${rangeLabel(event)}. ${presentation.typeLabel}. ${presentation.status.label}. ${event.owner || "Chưa phân công"}${presentation.isOverdue ? ". Quá hạn" : ""}`;
   return <div className={`calendar-event-wrapper ${className} ${onQuickStatus ? "has-quick-status" : ""}`} style={cardStyle}>
   <button type="button" className={`calendar-event-card status-${event.status} ${presentation.isOverdue ? "is-overdue" : ""}`} onClick={() => onSelect(event.task)} aria-label={`Mở chi tiết: ${detail}`} title={detail}>
     <span className="event-title"><b className="event-status-icon" aria-hidden="true">{presentation.isOverdue ? "!" : presentation.status.icon}</b><strong>{continuesBefore && <em aria-label="Tiếp tục từ kỳ trước">← </em>}{event.title}{continuesAfter && <em aria-label="Tiếp tục sang kỳ sau"> →</em>}</strong></span>
-    <span className="event-time">{rangeLabel(event)} · {event.startTime} – {event.endTime}</span>
+    <span className="event-time">{rangeLabel(event)}</span>
     <span className="event-meta"><i className="event-type-chip">{presentation.typeLabel}</i><i className="event-status-chip">{presentation.isOverdue ? "Quá hạn" : presentation.status.label}</i><small>{event.owner || "Chưa phân công"}</small></span>
   </button>
   {onQuickStatus && <select className="event-quick-status" value={event.status} onClick={(clickEvent) => clickEvent.stopPropagation()} onChange={(changeEvent) => void onQuickStatus(event.task, changeEvent.target.value as TaskStatus)} aria-label={`Đổi trạng thái ${event.title}`}>{TASK_STATUSES.map((status) => <option value={status} key={status}>{calendarStatusPresentation[status].label}</option>)}</select>}
@@ -188,7 +188,7 @@ function YearView({ date, events, onPickDate }: { date: string; events: Calendar
     const days = calendarDays(month);
     return <section className="year-month" key={month}><h2>{new Intl.DateTimeFormat("vi-VN", { month: "long", timeZone: "UTC" }).format(new Date(`${month}T00:00:00Z`))}</h2><div className="year-weekdays">{dayNames.map((name) => <span key={name}>{name.slice(0, 1)}</span>)}</div><div className="year-days">{days.map((day) => {
       const dayEvents = events.filter((event) => event.startDate <= day && day <= event.endDate);
-      return <button type="button" className={`${day.slice(0, 7) === month.slice(0, 7) ? "" : "outside"} ${isToday(day) ? "today" : ""} ${dayEvents.length ? "has-events" : ""}`.trim()} onClick={() => onPickDate(day)} title={dayEvents.map((event) => `${event.title} (${event.startTime}–${event.endTime})`).join("\n")} key={day}><span>{day.slice(8, 10)}</span>{dayEvents.length > 0 && <i aria-label={`${dayEvents.length} công việc`}>{dayEvents.slice(0, 3).map((event) => <b style={{ background: calendarWorkTypeTokens[event.task.workType].bar }} key={event.taskId}/>)}</i>}</button>;
+      return <button type="button" className={`${day.slice(0, 7) === month.slice(0, 7) ? "" : "outside"} ${isToday(day) ? "today" : ""} ${dayEvents.length ? "has-events" : ""}`.trim()} onClick={() => onPickDate(day)} title={dayEvents.map((event) => event.title).join("\n")} key={day}><span>{day.slice(8, 10)}</span>{dayEvents.length > 0 && <i aria-label={`${dayEvents.length} công việc`}>{dayEvents.slice(0, 3).map((event) => <b style={{ background: calendarWorkTypeTokens[event.task.workType].bar }} key={event.taskId}/>)}</i>}</button>;
     })}</div></section>;
   })}</div>;
 }

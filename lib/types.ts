@@ -7,9 +7,10 @@ export type WorkType = (typeof WORK_TYPES)[number];
 export type AccessRole = (typeof ACCESS_ROLES)[number];
 export type ReminderRepeat = "none" | "daily" | "weekly";
 
+export type BriefImage = { id: string; src?: string; source?: "upload" | "url"; driveFileId?: string; title: string; content: string; createdAt: string };
+
 export type Task = {
   id: string;
-  code: string;
   title: string;
   owner: string;
   assigneeIds: string[];
@@ -25,6 +26,10 @@ export type Task = {
   endTime: string;
   format: string;
   brief: string;
+  briefUrl: string | null;
+  briefFinalUrl: string | null;
+  briefImages: BriefImage[];
+  linkedBriefIds: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -42,7 +47,7 @@ export type TeamMember = {
   createdAt: string;
 };
 
-export type TaskInput = Pick<Task, "title" | "owner" | "workType" | "status" | "startDate" | "deadline" | "startTime" | "endTime" | "format" | "brief"> & { assigneeIds?: string[]; reminderDate?: string | null; reminderTime?: string | null; reminderRepeat?: ReminderRepeat; reminderOffsets?: number[] };
+export type TaskInput = Pick<Task, "title" | "owner" | "workType" | "status" | "startDate" | "deadline" | "startTime" | "endTime" | "format" | "brief"> & { assigneeIds?: string[]; briefUrl?: string | null; briefFinalUrl?: string | null; briefImages?: BriefImage[]; linkedBriefIds?: string[]; reminderDate?: string | null; reminderTime?: string | null; reminderRepeat?: ReminderRepeat; reminderOffsets?: number[] };
 export type TeamMemberInput = Pick<TeamMember, "name" | "role" | "workType" | "username" | "accessRole" | "avatarUrl"> & { password?: string };
 
 export type NotificationKind = "task_assigned" | "task_due" | "task_overdue";

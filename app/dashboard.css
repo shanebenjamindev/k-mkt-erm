@@ -1,1 +1,103 @@
-.dashboard-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:0 0 30px}.chart-card{min-height:240px;border:1px solid #e8ebf1;border-radius:13px;background:#fff;padding:19px}.chart-card h2{margin:0;font-size:15px}.chart-card p{margin:5px 0;color:#8993a4;font-size:11px}.status-chart,.week-chart{display:flex;height:145px;align-items:flex-end;gap:10px;margin-top:18px}.status-bar,.week-bar{display:grid;min-width:0;height:100%;flex:1;align-items:end;grid-template-rows:1fr auto;gap:8px;text-align:center}.status-bar>.bar,.week-bar>span{position:relative;display:block;min-height:7px;border-radius:6px 6px 2px 2px;background:#a8b2c1;transition:height .2s}.status-bar>.bar.in_progress{background:#5b9bea}.status-bar>.bar.pending_review{background:#f2af3c}.status-bar>.bar.completed{background:#42b980}.week-bar>span{background:#dd3030}.status-bar b,.week-bar b{position:absolute;top:-19px;left:50%;color:#526074;font-size:10px;transform:translateX(-50%)}.status-bar small,.week-bar small{min-height:22px;color:#8993a4;font-size:9px;line-height:1.1}@media(max-width:700px){.dashboard-charts{grid-template-columns:1fr}.chart-card{min-height:220px}}
+.dashboard-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 0 0 30px
+}
+
+.chart-card {
+    min-height: 240px;
+    border: 1px solid #e8ebf1;
+    border-radius: 13px;
+    background: #fff;
+    padding: 19px
+}
+
+.chart-card h2 {
+    margin: 0;
+    font-size: 15px
+}
+
+.chart-card p {
+    margin: 5px 0;
+    color: #8993a4;
+    font-size: 11px
+}
+
+.status-chart,
+.week-chart {
+    display: flex;
+    height: 145px;
+    align-items: flex-end;
+    gap: 10px;
+    margin-top: 18px
+}
+
+.status-bar,
+.week-bar {
+    display: grid;
+    min-width: 0;
+    height: 100%;
+    flex: 1;
+    align-items: end;
+    grid-template-rows: 1fr auto;
+    gap: 8px;
+    text-align: center
+}
+
+.status-bar>.bar,
+.week-bar>span {
+    position: relative;
+    display: block;
+    min-height: 7px;
+    border-radius: 6px 6px 2px 2px;
+    background: #a8b2c1;
+    transition: height .2s
+}
+
+.status-bar>.bar.in_progress {
+    background: #5b9bea
+}
+
+.status-bar>.bar.pending_review {
+    background: #f2af3c
+}
+
+.status-bar>.bar.completed {
+    background: #42b980
+}
+
+.week-bar>span {
+    background: #dd3030
+}
+
+.status-bar b,
+.week-bar b {
+    position: absolute;
+    top: -19px;
+    left: 50%;
+    color: #526074;
+    font-size: 10px;
+    transform: translateX(-50%)
+}
+
+.status-bar small,
+.week-bar small {
+    min-height: 22px;
+    color: #8993a4;
+    font-size: 9px;
+    line-height: 1.1
+}
+
+.chart-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.chart-view-picker{display:flex;flex:none;gap:2px;padding:3px;border:1px solid #e5e1e3;border-radius:9px;background:#f8f6f7}.chart-view-picker button{min-height:26px;padding:4px 8px;border:0;border-radius:6px;background:transparent;color:#68616a;font-size:10px;font-weight:650;cursor:pointer}.chart-view-picker button:hover{background:#fff;color:#7a1f1f}.chart-view-picker button.active{background:#fff;color:#7a1f1f;box-shadow:0 1px 3px #2e1b1b16}.chart-mark{color:inherit;text-decoration:none;cursor:pointer;outline-offset:3px}.chart-mark:hover,.chart-mark:focus-visible{transform:translateY(-2px);outline:0}.chart-mark:hover .bar,.chart-mark:hover>span,.chart-mark:focus-visible .bar,.chart-mark:focus-visible>span{filter:brightness(.94);box-shadow:0 4px 10px #5c202522}.chart-mark:focus-visible small{color:#7a1f1f;font-weight:700}.status-chart--list{height:auto;min-height:145px;align-items:stretch}.status-chart--list .status-bar{grid-template-rows:1fr;align-items:center}.status-chart--list .status-bar>.bar{height:10px!important;min-height:10px;border-radius:99px}.status-donut-layout{display:flex;min-height:150px;align-items:center;justify-content:center;gap:26px;margin-top:10px}.status-donut{display:grid;width:142px;height:142px;flex:none;place-items:center;border-radius:50%;position:relative}.status-donut:before{position:absolute;inset:20px;border-radius:50%;background:#fff;content:""}.status-donut>span{z-index:1;display:grid;text-align:center}.status-donut b{color:#342d32;font-size:22px}.status-donut small{color:#81777d;font-size:10px}.status-donut-legend{display:grid;gap:9px;min-width:140px}.status-donut-legend a{display:grid;grid-template-columns:9px 1fr auto;align-items:center;gap:8px;color:#625a62;font-size:11px;text-decoration:none}.status-donut-legend a:hover{color:#7a1f1f}.status-donut-legend i,.chart-number-list i{width:9px;height:9px;border-radius:50%}.status-donut-legend b{color:#373139;font-variant-numeric:tabular-nums}.chart-number-list{display:grid;gap:3px;margin-top:12px}.chart-number-list>a{display:grid;grid-template-columns:10px minmax(0,1fr) 34px 72px;align-items:center;gap:9px;min-height:30px;padding:4px 7px;border-radius:7px;color:#625a62;font-size:11px;text-decoration:none}.chart-number-list>a:hover,.chart-number-list>a:focus-visible{background:#fbf1f0;color:#7a1f1f;outline:0}.chart-number-list b{text-align:right;color:#342d32;font-variant-numeric:tabular-nums}.chart-number-list small{text-align:right;color:#837a81;font-size:10px}.week-dot{display:block;background:#dd3030}.week-line-wrap{margin-top:9px}.week-line-chart{display:block;width:100%;height:150px;overflow:visible}.week-line-chart>line{stroke:#ece8ea;stroke-width:1}.week-line-chart>polyline{fill:none;stroke:#bd3434;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.week-line-chart a{cursor:pointer}.week-line-chart circle{fill:#fff;stroke:#bd3434;stroke-width:4;transition:r .15s ease,fill .15s ease}.week-line-chart a:hover circle,.week-line-chart a:focus-visible circle{r:10;fill:#fbe3e1;outline:0}.week-line-labels{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center}.week-line-labels>a{display:grid;gap:2px;color:#81777d;font-size:9px;text-decoration:none}.week-line-labels>a:hover{color:#7a1f1f}.week-line-labels b{color:#4d454d;font-size:10px}.week-number-list{margin-top:12px}.efficiency-card{margin:0 0 30px;border:1px solid rgba(255,255,255,.84);border-radius:16px;background:rgba(255,255,255,.82);padding:20px 22px;box-shadow:0 8px 26px rgba(94,35,43,.06);backdrop-filter:blur(12px)}.efficiency-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.efficiency-heading small{color:#806d74;font-size:10px;font-weight:750;letter-spacing:1px}.efficiency-heading h2{margin:5px 0 0;color:#30282e;font-size:18px}.efficiency-heading p{margin:5px 0 0;color:#7e737a;font-size:12px}.efficiency-period{padding:5px 9px;border:1px solid #eadfe1;border-radius:99px;background:#fff;color:#685d63;font-size:10px;font-weight:650}.efficiency-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:16px}.efficiency-metrics>*{display:grid;gap:4px;min-width:0;padding:12px;border:1px solid #eee8ea;border-radius:10px;background:#fff;color:inherit;text-decoration:none}.efficiency-metrics>a:hover{border-color:#dcbabb;background:#fff8f7}.efficiency-metrics small{color:#81777e;font-size:10px}.efficiency-metrics strong{overflow:hidden;color:#342b32;font-size:21px;text-overflow:ellipsis;white-space:nowrap}.efficiency-metrics span{overflow:hidden;color:#81777e;font-size:10px;text-overflow:ellipsis;white-space:nowrap}.efficiency-insight{display:flex;align-items:center;gap:10px;margin-top:12px;padding:11px 13px;border-radius:9px;background:#fff5f3;color:#604d52}.efficiency-insight>span{color:#a53535;font-size:16px}.efficiency-insight p{flex:1;margin:0;font-size:12px;line-height:1.5}.efficiency-insight a{flex:none;color:#8b2929;font-size:11px;font-weight:700;text-decoration:none}.efficiency-insight a:hover{text-decoration:underline}
+
+@media(max-width:700px) {
+    .dashboard-charts {
+        grid-template-columns: 1fr
+    }
+
+    .chart-card {
+        min-height: 220px
+    }
+    .chart-card-header{flex-wrap:wrap}.chart-view-picker{margin-left:auto}.status-donut-layout{gap:16px}.status-donut{width:122px;height:122px}.status-donut:before{inset:18px}.efficiency-card{padding:16px}.efficiency-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.efficiency-insight{align-items:flex-start;flex-wrap:wrap}.efficiency-insight a{margin-left:25px}
+}

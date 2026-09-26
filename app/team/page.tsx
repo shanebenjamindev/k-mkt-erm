@@ -7,6 +7,7 @@ import { useWorkspace } from "../components/WorkspaceProvider";
 import { useAuth } from "../components/AuthProvider";
 import { ACTIVE_TASK_CAPACITY, assessWorkload, type WorkloadAssessment } from "../../lib/workload";
 import { accessRoleLabels, type TeamMember, type TeamMemberInput } from "../../lib/types";
+import { can } from "../../lib/permissions";
 
 export default function TeamPage() {
   const { user } = useAuth();
@@ -35,7 +36,7 @@ export default function TeamPage() {
     finally { setRemovingId(null); }
   };
 
-  if (user?.accessRole !== "admin") return <WorkspaceShell title="Nhân viên"><div className="access-denied"><small>KHÔNG CÓ QUYỀN</small><h1>Khu vực quản trị nhân viên</h1><p>Chỉ quản trị viên mới được xem và quản lý tài khoản nhân viên.</p></div></WorkspaceShell>;
+  if (!can(user, "member.manage")) return <WorkspaceShell title="Nhân viên"><div className="access-denied"><small>KHÔNG CÓ QUYỀN</small><h1>Khu vực quản trị nhân viên</h1><p>Chỉ quản trị viên mới được xem và quản lý tài khoản nhân viên.</p></div></WorkspaceShell>;
 
   return <WorkspaceShell title="Nhân viên"><WorkspaceState><div className="page-heading"><div><small>ADMIN / EMPLOYEES</small><h1>Quản lý nhân viên</h1><p>Tạo tài khoản, phân quyền và theo dõi khối lượng công việc của team.</p></div><button className="primary" onClick={() => setAdding(true)}>＋ Thêm nhân viên</button></div><div className="team-stats performance-stats"><div className="performance-overloaded"><strong>{overloaded}</strong><span>Đang quá tải</span></div><div className="performance-watch"><strong>{watch}</strong><span>Cần theo dõi</span></div><div className="performance-balanced"><strong>{balanced}</strong><span>Khối lượng ổn định</span></div></div><div className="workload-explainer"><b>Cách đo:</b> tối đa {ACTIVE_TASK_CAPACITY} task chưa hoàn thành/người. Từ {ACTIVE_TASK_CAPACITY - 1} task, có deadline gần hoặc trễ hạn sẽ được gắn cảnh báo.{unassigned ? <span className="unassigned-alert"> {unassigned} task chưa được phân công.</span> : null}</div>{actionError && <p className="form-error team-error">{actionError}</p>}<div className="people-grid">{memberAssessments.map((assessment) => <MemberCard key={assessment.member.id} assessment={assessment} removing={removingId === assessment.member.id} onEdit={() => { setActionError(null); setEditing(assessment.member); }} onDelete={() => void destroy(assessment.member, assessment.activeTasks)} />)}</div>{members.length === 0 && <div className="empty-panel">Chưa có nhân viên. Hãy tạo tài khoản đầu tiên.</div>}</WorkspaceState>{adding && <MemberForm onClose={() => setAdding(false)} />}{editing && <MemberForm member={editing} onClose={() => setEditing(null)} />}</WorkspaceShell>;
 }

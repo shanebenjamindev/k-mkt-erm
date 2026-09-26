@@ -1,13 +1,16 @@
 import type { SVGProps } from "react";
 
-export type IconName = "dashboard" | "tasks" | "calendar" | "briefs" | "drive" | "users" | "settings" | "logout" | "folder" | "video" | "file" | "upload" | "plus" | "chevronLeft" | "more" | "edit" | "trash" | "refresh" | "external" | "close" | "warning" | "bell";
+export type IconName = "dashboard" | "tasks" | "calendar" | "briefs" | "briefsNav" | "briefCard" | "drive" | "users" | "settings" | "logout" | "folder" | "video" | "file" | "image" | "upload" | "plus" | "chevronLeft" | "more" | "edit" | "trash" | "refresh" | "external" | "close" | "warning" | "bell";
 
 const paths: Record<IconName, React.ReactNode> = {
   dashboard: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
   tasks: <><path d="M9 11.5 11 13.5l4-4"/><path d="M20 12a8 8 0 1 1-4-6.9"/></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></>,
-  briefs: <><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></>,
-  drive: <><path d="m8 3 4 7H4zM16 3l4 7h-8zM8 12h8l-4 7z"/></>,
+  briefs: <><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path d="M14 3.5V8h4M9 12h6M9 15.5h6M9 19h4"/></>,
+  briefsNav: <><path d="M8 4h9l3 3v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M5 7H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2M13 4v4h5M10 12h7M10 15h7M10 18h4"/></>,
+  briefCard: <><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1z"/><path d="M14 3.5V8h4"/><rect x="9" y="11" width="4.5" height="4.5" rx=".6"/><circle cx="10.4" cy="12.4" r=".55"/><path d="m9.5 14.7 1.25-1.25 1.05 1 .8-.8.55.55M15.5 12h1.5M15.5 15h1.5M9 18h8"/></>,
+  image: <><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9" r="1.5"/><path d="m4 17 5-5 3 3 3-4 5 6"/></>,
+  drive: <><path d="M4 8a2 2 0 0 1 2-2h5l2 2h5a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="m10 11 5 3-5 3z"/></>,
   users: <><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M17 11a4 4 0 1 0-1-7.87M21 21v-2a4 4 0 0 0-3-3.87"/></>,
   settings: <><path d="M10 3h4l.7 2.1 2 .9 2-.9 2.3 3.5-1.6 1.6.1 2.2 1.5 1.6-2.2 3.5-2.1-.8-2 .9L14 21h-4l-.7-2.1-2-.9-2 .8L3 15.3l1.5-1.6.1-2.2L3 9.9l2.3-3.5 2 .9 2-.9z"/><circle cx="12" cy="12" r="3"/></>,
   logout: <><path d="M10 17l5-5-5-5M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-6"/></>,

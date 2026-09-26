@@ -36,6 +36,7 @@ export function NotificationCenter() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [pushBusy, setPushBusy] = useState(false);
+  const [pushTestBusy, setPushTestBusy] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [now, setNow] = useState(Date.now);
   const [retryAt, setRetryAt] = useState<Record<string, number>>({});
@@ -129,11 +130,13 @@ export function NotificationCenter() {
     void load();
     const refresh = () => { if (document.visibilityState === "visible") void load(); };
     const storage = (event: StorageEvent) => { if (event.key === CHANGE_KEY) refresh(); };
+    const warning = (event: Event) => { const message = (event as CustomEvent<string>).detail; if (message) setFeedback({ text: message, kind: "error" }); };
     const timer = window.setInterval(refresh, 30_000);
     window.addEventListener("focus", refresh);
     window.addEventListener("online", refresh);
     window.addEventListener("storage", storage);
     window.addEventListener("workspace:notifications-changed", refresh);
+    window.addEventListener("workspace:notification-warning", warning);
     document.addEventListener("visibilitychange", refresh);
     return () => {
       ++requestVersion.current;
@@ -147,6 +150,7 @@ export function NotificationCenter() {
       window.removeEventListener("online", refresh);
       window.removeEventListener("storage", storage);
       window.removeEventListener("workspace:notifications-changed", refresh);
+      window.removeEventListener("workspace:notification-warning", warning);
       document.removeEventListener("visibilitychange", refresh);
     };
   }, [load, setFeed]);
@@ -303,6 +307,17 @@ export function NotificationCenter() {
     } finally { pushRef.current = false; setPushBusy(false); }
   };
 
+  const testPush = async () => {
+    if (pushTestBusy) return;
+    setPushTestBusy(true); setFeedback(null);
+    try {
+      const result = await requestJson<{ message: string }>("/api/notifications/push/test", { method: "POST" });
+      setFeedback({ text: result.message, kind: "success" });
+    } catch (error) {
+      setFeedback({ text: error instanceof Error ? error.message : "Không thể gửi thông báo thử.", kind: "error" });
+    } finally { setPushTestBusy(false); }
+  };
+
   const toggleSound = async () => {
     const next = !soundEnabledRef.current;
     setSoundEnabled(next);
@@ -329,6 +344,7 @@ export function NotificationCenter() {
         <div className="notification-panel-actions">
           <button type="button" className="text-button" onClick={() => void toggleSound()} aria-pressed={soundEnabled}>{soundEnabled ? "Tắt âm báo" : "Bật âm báo"}</button>
           <button type="button" className="text-button" disabled={pushBusy} onClick={() => void enablePush()}>{pushBusy ? "Đang bật…" : "Bật thông báo đẩy"}</button>
+          <button type="button" className="text-button" disabled={pushTestBusy} onClick={() => void testPush()}>{pushTestBusy ? "Đang gửi…" : "Gửi thử tới thiết bị"}</button>
         </div>
       </div>
       <div className="notification-toolbar">

@@ -46,14 +46,15 @@ export function pushConfiguration() {
 }
 
 export async function sendPushNotifications(notifications: WorkspaceNotification[]) {
-  if (!notifications.length || !pushConfiguration().configured || !publicKey || !privateKey) return { sent: 0, skipped: notifications.length };
+  if (!notifications.length || !pushConfiguration().configured || !publicKey || !privateKey) return { sent: 0, failed: 0, skipped: notifications.length, subscriptions: 0, reasons: [] as number[] };
   webpush.setVapidDetails(subject, publicKey, privateKey);
   const subscriptions = await listPushSubscriptions(notifications.map((item) => item.userId));
   const jobs = subscriptions.flatMap((subscription) => notifications.filter((item) => item.userId === subscription.userId).map(async (notification) => {
-    const payload = JSON.stringify({ title: notification.title, body: notification.body, url: notification.taskId ? `/tasks?task=${encodeURIComponent(notification.taskId)}` : "/" });
+    const payload = JSON.stringify({ title: notification.title, body: notification.body, tag: notification.id, url: notification.taskId ? `/tasks?task=${encodeURIComponent(notification.taskId)}` : "/" });
     await webpush.sendNotification({ endpoint: subscription.endpoint, keys: subscription.keys }, payload);
     return notification.id;
   }));
   const results = await Promise.allSettled(jobs);
-  return { sent: results.filter((item) => item.status === "fulfilled").length, skipped: 0 };
+  const reasons = results.flatMap((item) => item.status === "rejected" ? [Number((item.reason as { statusCode?: number })?.statusCode) || 0] : []);
+  return { sent: results.length - reasons.length, failed: reasons.length, skipped: notifications.length && !subscriptions.length ? notifications.length : 0, subscriptions: subscriptions.length, reasons };
 }

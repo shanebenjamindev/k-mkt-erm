@@ -4,7 +4,6 @@ export const TASK_SORT_OPTIONS = [
   { value: "deadline", label: "Deadline" },
   { value: "startDate", label: "Ngày bắt đầu" },
   { value: "title", label: "Tên công việc" },
-  { value: "code", label: "Mã công việc" },
   { value: "owner", label: "Người phụ trách" },
   { value: "workType", label: "Loại công việc" },
   { value: "status", label: "Trạng thái" },

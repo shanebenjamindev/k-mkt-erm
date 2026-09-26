@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { normalizeBriefImages } from "./brief-images";
 import { DEFAULT_PROJECT_SETTINGS, type ProjectSettings } from "./project-settings";
 import { dueRelativeOffsets, nextScheduledAt, taskReminderDue, vietnamNow } from "./reminder-schedule";
 import { isCalendarDate, isClockTime, TaskValidationError } from "./task-validation";
@@ -26,7 +27,7 @@ const cleanAvatar = (value?: string) => value?.startsWith("data:image/") ? value
 const usernameEmail = (username: string) => `${cleanUsername(username)}@accounts.k-mkt.local`;
 const publicMember = ({ passwordHash: _passwordHash, ...member }: StoredMember): TeamMember => member;
 
-type TaskRow = { id: string; code: string; title: string; owner_name: string; assignee_ids?: string[]; work_type: WorkType; status: TaskStatus; start_date: string | null; deadline: string | null; start_time: string; end_time: string; reminder_date?: string | null; reminder_time?: string | null; reminder_repeat?: Task["reminderRepeat"]; reminder_offsets?: number[]; format: string; brief: string; created_at: string; updated_at: string };
+type TaskRow = { id: string; title: string; owner_name: string; assignee_ids?: string[]; linked_brief_ids?: string[]; work_type: WorkType; status: TaskStatus; start_date: string | null; deadline: string | null; start_time: string; end_time: string; reminder_date?: string | null; reminder_time?: string | null; reminder_repeat?: Task["reminderRepeat"]; reminder_offsets?: number[]; format: string; brief: string; brief_url?: string | null; brief_final_url?: string | null; brief_images?: Task["briefImages"]; created_at: string; updated_at: string };
 type MemberRow = { id: string; name: string; role: string; work_type: WorkType; username: string; access_role: AccessRole; avatar_url: string | null; initials: string; must_change_password: boolean; created_at: string };
 type NotificationRow = { id: string; user_id: string; task_id: string | null; kind: NotificationKind; title: string; body: string; event_key: string; read_at: string | null; reminded_at?: string | null; scheduled_at?: string | null; scheduled_repeat?: Task["reminderRepeat"]; created_at: string };
 type PushRow = { id: string; user_id: string; endpoint: string; keys: { p256dh: string; auth: string }; created_at: string };
@@ -50,11 +51,11 @@ function syncLocalAssignments(data: Awaited<ReturnType<typeof readWorkspace>>) {
 }
 
 const toTask = (row: TaskRow, members: TeamMember[] = []): Task => ({
-  id: row.id, code: row.code, title: row.title,
+  id: row.id, title: row.title,
   assigneeIds: row.assignee_ids?.filter((id) => members.some((member) => member.id === id)) ?? members.filter((member) => member.name === row.owner_name).map((member) => member.id).slice(0, 1),
   owner: row.assignee_ids ? assigneeNames(row.assignee_ids, members) : row.owner_name || UNASSIGNED, workType: row.work_type,
   status: row.status, startDate: row.start_date ?? row.deadline, deadline: row.deadline, startTime: row.start_time.slice(0, 5), endTime: row.end_time?.slice(0, 5) ?? "11:00", reminderDate: row.reminder_date ?? null, reminderTime: row.reminder_time?.slice(0, 5) ?? null, reminderRepeat: row.reminder_repeat ?? "none", reminderOffsets: row.reminder_offsets ?? [], format: row.format,
-  brief: row.brief, createdAt: row.created_at, updatedAt: row.updated_at
+  brief: row.brief, briefUrl: row.brief_url ?? null, briefFinalUrl: row.brief_final_url ?? null, briefImages: normalizeBriefImages(row.brief_images), linkedBriefIds: row.linked_brief_ids ?? [], createdAt: row.created_at, updatedAt: row.updated_at
 });
 const toMember = (row: MemberRow): TeamMember => ({
   id: row.id, name: row.name, role: row.role, workType: row.work_type, username: row.username,
@@ -80,12 +81,6 @@ function database() {
 
 function fail(error: { message: string } | null, fallback: string): never {
   throw new Error(error?.message ? `${fallback}: ${error.message}` : fallback);
-}
-
-function nextCode(tasks: Pick<Task, "code">[]) {
-  const prefix = `T${new Date().getMonth() + 1}-`;
-  const next = Math.max(0, ...tasks.filter((task) => task.code.startsWith(prefix)).map((task) => Number(task.code.slice(prefix.length)) || 0)) + 1;
-  return `${prefix}${String(next).padStart(2, "0")}`;
 }
 
 function validTime(value: string) {
@@ -153,11 +148,13 @@ export type TaskEffects = { notifications: WorkspaceNotification[]; notification
 
 async function recordTaskAssignment(task: Task, previousIds: string[], localData: Awaited<ReturnType<typeof readWorkspace>> | undefined, effects?: TaskEffects) {
   try {
+    const settings = localData?.settings ?? await getProjectSettings();
+    if (!settings.notificationEvents.task_assigned) return;
     for (const userId of task.assigneeIds.filter((id) => !previousIds.includes(id))) {
       const payload = {
         userId, taskId: task.id, kind: "task_assigned" as const, title: "Bạn có công việc mới",
-        body: `${task.code} · ${task.title}${task.deadline ? ` · Hạn ${task.deadline}` : ""}`,
-        eventKey: `assigned:${task.id}:${userId}`
+        body: `${task.title}${task.deadline ? ` · Hạn ${task.deadline}` : ""}`,
+        eventKey: `assigned:${task.id}:${userId}:${task.updatedAt}`
       };
       const notification = localData ? addLocalNotification(localData, payload) : await addRemoteNotification(payload);
       if (notification) effects?.notifications.push(notification);
@@ -186,12 +183,14 @@ export async function createTask(input: TaskInput, effects?: TaskEffects): Promi
     const members = await listMembers();
     const clean = normalizeSchedule(resolveAssignment(input, members));
     if (!clean.title.trim()) throw new Error("Tên công việc là bắt buộc.");
+    const existingTaskIds = new Set((await listTasks()).map((task) => task.id));
+    const linkedBriefIds = (clean.linkedBriefIds ?? []).filter((id) => existingTaskIds.has(id));
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const { data, error } = await database().from("tasks").insert({
-        code: nextCode(await listTasks()), title: clean.title.trim(), owner_name: clean.owner, assignee_ids: clean.assigneeIds,
+        title: clean.title.trim(), owner_name: clean.owner, assignee_ids: clean.assigneeIds,
         work_type: clean.workType, status: clean.status, start_date: clean.startDate || null, deadline: clean.deadline || null,
         reminder_date: clean.reminderDate ?? null, reminder_time: clean.reminderTime ?? null, reminder_repeat: clean.reminderRepeat ?? "none", reminder_offsets: clean.reminderOffsets ?? [],
-        start_time: clean.startTime, end_time: clean.endTime, format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
+        start_time: clean.startTime, end_time: clean.endTime, format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim(), brief_url: clean.briefUrl ?? null, brief_final_url: clean.briefFinalUrl ?? null, brief_images: clean.briefImages ?? [], linked_brief_ids: linkedBriefIds
       }).select().single();
       if (error?.code === "23505") continue;
       if (error || !data) fail(error, "Không thể tạo công việc");
@@ -207,9 +206,9 @@ export async function createTask(input: TaskInput, effects?: TaskEffects): Promi
     if (!clean.title.trim()) throw new Error("Tên công việc là bắt buộc.");
     const now = new Date().toISOString();
     const task: Task = {
-      id: randomUUID(), code: nextCode(data.tasks), ...clean, assigneeIds: clean.assigneeIds ?? [], title: clean.title.trim(), deadline: clean.deadline || null,
+      id: randomUUID(), ...clean, assigneeIds: clean.assigneeIds ?? [], title: clean.title.trim(), deadline: clean.deadline || null,
       reminderDate: clean.reminderDate ?? null, reminderTime: clean.reminderTime ?? null, reminderRepeat: clean.reminderRepeat ?? "none", reminderOffsets: clean.reminderOffsets ?? [],
-      format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim(), createdAt: now, updatedAt: now
+      format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim(), briefUrl: clean.briefUrl ?? null, briefFinalUrl: clean.briefFinalUrl ?? null, briefImages: clean.briefImages ?? [], linkedBriefIds: (clean.linkedBriefIds ?? []).filter((linkedId) => data.tasks.some((item) => item.id === linkedId)), createdAt: now, updatedAt: now
     };
     data.tasks.push(task);
     await recordTaskAssignment(task, [], data, effects);
@@ -226,6 +225,8 @@ export async function updateTask(id: string, input: Partial<TaskInput>, effects?
       if (!existing) return null;
       const members = await listMembers();
       const previous = toTask(existing as TaskRow, members);
+      const existingTaskIds = input.linkedBriefIds === undefined ? null : new Set((await listTasks()).map((task) => task.id));
+      const linkedBriefIds = input.linkedBriefIds === undefined ? previous.linkedBriefIds : [...new Set(input.linkedBriefIds)].filter((linkedId) => linkedId !== id && existingTaskIds!.has(linkedId));
       const merged: TaskInput = {
         title: input.title ?? previous.title, owner: input.owner ?? previous.owner, workType: input.workType ?? previous.workType,
         assigneeIds: input.assigneeIds ?? (input.owner !== undefined ? undefined : previous.assigneeIds),
@@ -235,14 +236,14 @@ export async function updateTask(id: string, input: Partial<TaskInput>, effects?
         reminderOffsets: input.reminderOffsets ?? previous.reminderOffsets,
         status: input.status ?? previous.status, deadline: input.deadline === "" ? null : input.deadline ?? previous.deadline,
         startDate: input.startDate === "" ? null : input.startDate ?? previous.startDate ?? previous.deadline,
-        startTime: input.startTime ?? previous.startTime, endTime: input.endTime ?? previous.endTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief
+        startTime: input.startTime ?? previous.startTime, endTime: input.endTime ?? previous.endTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief, briefUrl: input.briefUrl !== undefined ? input.briefUrl : previous.briefUrl, briefFinalUrl: input.briefFinalUrl !== undefined ? input.briefFinalUrl : previous.briefFinalUrl, briefImages: input.briefImages ?? previous.briefImages, linkedBriefIds
       };
       const clean = normalizeSchedule(resolveAssignment(merged, members), !previous.startDate && !previous.deadline);
       if (!clean.title.trim()) throw new Error("Tên công việc là bắt buộc.");
       const { data, error } = await database().from("tasks").update({
         title: clean.title.trim(), owner_name: clean.owner, assignee_ids: clean.assigneeIds, work_type: clean.workType, status: clean.status,
         start_date: clean.startDate || null, deadline: clean.deadline || null, start_time: clean.startTime, end_time: clean.endTime,
-        reminder_date: clean.reminderDate ?? null, reminder_time: clean.reminderTime ?? null, reminder_repeat: clean.reminderRepeat ?? "none", reminder_offsets: clean.reminderOffsets ?? [], format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim()
+        reminder_date: clean.reminderDate ?? null, reminder_time: clean.reminderTime ?? null, reminder_repeat: clean.reminderRepeat ?? "none", reminder_offsets: clean.reminderOffsets ?? [], format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim(), brief_url: clean.briefUrl ?? null, brief_final_url: clean.briefFinalUrl ?? null, brief_images: clean.briefImages ?? [], linked_brief_ids: clean.linkedBriefIds ?? []
       }).eq("id", id).eq("updated_at", previous.updatedAt).select().maybeSingle();
       if (error) fail(error, "Không thể cập nhật công việc");
       if (!data) continue;
@@ -266,11 +267,11 @@ export async function updateTask(id: string, input: Partial<TaskInput>, effects?
       reminderOffsets: input.reminderOffsets ?? previous.reminderOffsets,
       status: input.status ?? previous.status, deadline: input.deadline === "" ? null : input.deadline ?? previous.deadline,
       startDate: input.startDate === "" ? null : input.startDate ?? previous.startDate ?? previous.deadline,
-      startTime: input.startTime ?? previous.startTime, endTime: input.endTime ?? previous.endTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief
+      startTime: input.startTime ?? previous.startTime, endTime: input.endTime ?? previous.endTime, format: input.format ?? previous.format, brief: input.brief ?? previous.brief, briefUrl: input.briefUrl !== undefined ? input.briefUrl : previous.briefUrl, briefFinalUrl: input.briefFinalUrl !== undefined ? input.briefFinalUrl : previous.briefFinalUrl, briefImages: input.briefImages ?? previous.briefImages, linkedBriefIds: input.linkedBriefIds === undefined ? previous.linkedBriefIds : input.linkedBriefIds.filter((linkedId) => linkedId !== id && data.tasks.some((item) => item.id === linkedId))
     };
     const clean = normalizeSchedule(resolveAssignment(merged, data.members.map(publicMember)), !previous.startDate && !previous.deadline);
     if (!clean.title.trim()) throw new Error("Tên công việc là bắt buộc.");
-    const updated: Task = { ...previous, ...clean, assigneeIds: clean.assigneeIds ?? [], title: clean.title.trim(), format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim(), updatedAt: new Date().toISOString() };
+    const updated: Task = { ...previous, ...clean, assigneeIds: clean.assigneeIds ?? [], linkedBriefIds: clean.linkedBriefIds ?? previous.linkedBriefIds ?? [], title: clean.title.trim(), format: clean.format.trim() || "Chưa xác định", brief: clean.brief.trim(), briefUrl: clean.briefUrl ?? null, briefFinalUrl: clean.briefFinalUrl ?? null, briefImages: clean.briefImages ?? previous.briefImages, updatedAt: new Date().toISOString() };
     data.tasks[index] = updated;
     await recordTaskAssignment(updated, taskAssigneeIds(previous, data.members.map(publicMember)), data, effects);
     await writeWorkspace(data);
@@ -655,6 +656,8 @@ export async function createScheduledReminders(now = new Date(), userId?: string
 async function recordScheduledReminders(now: Date, userId?: string) {
   const created: WorkspaceNotification[] = [];
   const localData = isRemote() ? undefined : await readWorkspace();
+  const settings = localData?.settings ?? await getProjectSettings();
+  if (!settings.notificationEvents.task_due) return created;
   const [tasks, members] = localData
     ? [localData.tasks, localData.members.map(publicMember)] as const
     : await Promise.all([listTasks(), listMembers()]);
@@ -667,7 +670,7 @@ async function recordScheduledReminders(now: Date, userId?: string) {
       const keys = [...(taskReminderDue(task, now) ? [`scheduled:${task.id}:${today}`] : []), ...relativeOffsets.map((offset) => `relative:${task.id}:${task.startDate}:${task.startTime}:${offset}`)];
       for (const eventKey of keys) {
         const payload = { userId: assigneeId, taskId: task.id, kind: "task_due" as const, title: "Nhắc công việc theo lịch",
-          body: `${task.code} · ${task.title}`, eventKey };
+          body: `${task.title}`, eventKey };
         const notification = localData ? addLocalNotification(localData, payload) : await addRemoteNotification(payload);
         if (notification) created.push(notification);
       }
@@ -707,16 +710,19 @@ async function recordScheduledReminders(now: Date, userId?: string) {
 async function recordDeadlineReminders(now: Date) {
   const today = vietnamDate(now);
   const result: WorkspaceNotification[] = [];
+  const settings = await getProjectSettings();
+  if (!settings.notificationEvents.task_due && !settings.notificationEvents.task_overdue) return result;
   const [tasks, members] = await Promise.all([listTasks(), listMembers()]);
   const localData = isRemote() ? undefined : await readWorkspace();
   for (const task of tasks) {
     if (!task.deadline || task.status === "completed") continue;
     const kind: NotificationKind | null = task.deadline === today ? "task_due" : task.deadline < today ? "task_overdue" : null;
     if (!kind) continue;
+    if (!settings.notificationEvents[kind]) continue;
     for (const userId of taskAssigneeIds(task, members)) {
       const payload: Omit<WorkspaceNotification, "id" | "createdAt" | "readAt"> = {
         userId, taskId: task.id, kind, title: kind === "task_due" ? "Task đến hạn hôm nay" : "Task đã quá hạn",
-        body: `${task.code} · ${task.title} · Hạn ${task.deadline}`, eventKey: `${kind}:${task.id}:${today}`
+          body: `${task.title} · Hạn ${task.deadline}`, eventKey: `${kind}:${task.id}:${today}`
       };
       const created = isRemote() ? await addRemoteNotification(payload) : localData ? addLocalNotification(localData, payload) : null;
       if (created) result.push(created);
@@ -735,21 +741,67 @@ export async function getProjectSettings(): Promise<ProjectSettings> {
       if (error.code === "42P01" || error.code === "PGRST205") return DEFAULT_PROJECT_SETTINGS;
       fail(error, "Không thể tải cài đặt dự án");
     }
-    return data ? { accentColor: data.accent_color, backgroundPreset: data.background_preset, backgroundImage: data.background_image, notificationTone: data.notification_tone } : DEFAULT_PROJECT_SETTINGS;
+    return data ? {
+      ...DEFAULT_PROJECT_SETTINGS,
+      projectName: data.project_name ?? DEFAULT_PROJECT_SETTINGS.projectName,
+      projectDescription: data.project_description ?? "",
+      projectLogoUrl: data.project_logo_url ?? "",
+      notificationEvents: { ...DEFAULT_PROJECT_SETTINGS.notificationEvents, ...(data.notification_events ?? {}) },
+      accentColor: data.accent_color,
+      backgroundPreset: data.background_preset,
+      backgroundImage: data.background_image,
+      notificationTone: data.notification_tone,
+      themeMode: data.theme_mode ?? "light",
+      highContrast: data.high_contrast ?? false
+    } : DEFAULT_PROJECT_SETTINGS;
   }
   return (await readWorkspace()).settings;
 }
 
 export async function saveProjectSettings(settings: ProjectSettings): Promise<ProjectSettings> {
+  const normalized: ProjectSettings = {
+    ...settings,
+    projectName: settings.projectName.trim(),
+    projectDescription: settings.projectDescription.trim(),
+    projectLogoUrl: settings.projectLogoUrl.trim(),
+    notificationEvents: { ...settings.notificationEvents }
+  };
+  const current = await getProjectSettings();
+  if (JSON.stringify(normalized) === JSON.stringify(current)) return current;
   if (isRemote()) {
-    const { data, error } = await database().from("workspace_settings").upsert({ id: 1, accent_color: settings.accentColor, background_preset: settings.backgroundPreset, background_image: settings.backgroundImage, notification_tone: settings.notificationTone }).select().single();
+    const { data, error } = await database().from("workspace_settings").upsert({
+      id: 1,
+      project_name: normalized.projectName,
+      project_description: normalized.projectDescription,
+      project_logo_url: normalized.projectLogoUrl,
+      notification_events: normalized.notificationEvents,
+      accent_color: normalized.accentColor,
+      background_preset: normalized.backgroundPreset,
+      background_image: normalized.backgroundImage,
+      notification_tone: normalized.notificationTone,
+      theme_mode: normalized.themeMode,
+      high_contrast: normalized.highContrast,
+      updated_at: new Date().toISOString()
+    }).select().single();
     if (error || !data) fail(error, "Không thể lưu cài đặt dự án");
-    return { accentColor: data.accent_color, backgroundPreset: data.background_preset, backgroundImage: data.background_image, notificationTone: data.notification_tone };
+    return {
+      ...DEFAULT_PROJECT_SETTINGS,
+      projectName: data.project_name,
+      projectDescription: data.project_description ?? "",
+      projectLogoUrl: data.project_logo_url ?? "",
+      notificationEvents: { ...DEFAULT_PROJECT_SETTINGS.notificationEvents, ...(data.notification_events ?? {}) },
+      accentColor: data.accent_color,
+      backgroundPreset: data.background_preset,
+      backgroundImage: data.background_image,
+      notificationTone: data.notification_tone,
+      themeMode: data.theme_mode,
+      highContrast: data.high_contrast
+    };
   }
   return withWorkspaceTransaction(async () => {
     const data = await readWorkspace();
-    data.settings = settings;
+    data.settings = normalized;
     await writeWorkspace(data);
-    return settings;
+    return normalized;
   });
 }

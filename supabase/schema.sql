@@ -16,7 +16,6 @@ create table if not exists public.team_members (
 
 create table if not exists public.tasks (
   id uuid primary key default gen_random_uuid(),
-  code text not null unique,
   title text not null,
   owner_name text not null default 'Chưa phân công',
   assignee_ids uuid[] not null default '{}',
@@ -32,6 +31,10 @@ create table if not exists public.tasks (
   reminder_offsets integer[] not null default '{}',
   format text not null default '',
   brief text not null default '',
+  brief_url text,
+  brief_final_url text,
+  brief_images jsonb not null default '[]'::jsonb,
+  linked_brief_ids uuid[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -61,6 +64,11 @@ alter table public.tasks add column if not exists reminder_date date;
 alter table public.tasks add column if not exists reminder_time time;
 alter table public.tasks add column if not exists reminder_repeat text not null default 'none';
 alter table public.tasks add column if not exists reminder_offsets integer[] not null default '{}';
+alter table public.tasks add column if not exists brief_url text;
+alter table public.tasks add column if not exists brief_final_url text;
+alter table public.tasks add column if not exists brief_images jsonb not null default '[]'::jsonb;
+alter table public.tasks add column if not exists linked_brief_ids uuid[] not null default '{}';
+create index if not exists tasks_linked_brief_ids_idx on public.tasks using gin (linked_brief_ids);
 
 create table if not exists public.workspace_notifications (
   id uuid primary key default gen_random_uuid(),
@@ -85,12 +93,23 @@ create table if not exists public.push_subscriptions (
 
 create table if not exists public.workspace_settings (
   id integer primary key default 1 check (id = 1),
+  project_name text not null default 'K-MKT Workspace',
+  project_description text not null default '',
+  project_logo_url text not null default '',
+  notification_events jsonb not null default '{"task_assigned":true,"task_due":true,"task_overdue":true}'::jsonb,
   accent_color text not null default '#E53935',
   background_preset text not null default 'blush',
   background_image text,
   notification_tone text not null default 'chime',
+  theme_mode text not null default 'light',
+  high_contrast boolean not null default false,
   updated_at timestamptz not null default now()
 );
+
+alter table public.workspace_settings add column if not exists project_name text not null default 'K-MKT Workspace';
+alter table public.workspace_settings add column if not exists project_description text not null default '';
+alter table public.workspace_settings add column if not exists project_logo_url text not null default '';
+alter table public.workspace_settings add column if not exists notification_events jsonb not null default '{"task_assigned":true,"task_due":true,"task_overdue":true}'::jsonb;
 
 create index if not exists workspace_notifications_user_created_idx on public.workspace_notifications (user_id, created_at desc);
 create index if not exists workspace_notifications_task_idx on public.workspace_notifications (task_id);

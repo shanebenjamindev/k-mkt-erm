@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { currentUser } from "../../../../lib/auth";
 import { uploadDriveFile } from "../../../../lib/google-drive";
+import { can } from "../../../../lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     const user = await currentUser();
     if (!user) return NextResponse.json({ error: "Vui lòng đăng nhập." }, { status: 401 });
     if (user.mustChangePassword) return NextResponse.json({ error: "Bạn cần đổi mật khẩu trước khi thao tác workspace." }, { status: 403 });
-    if (user.accessRole !== "admin") return NextResponse.json({ error: "Chỉ quản trị viên có thể upload tệp." }, { status: 403 });
+    if (!can(user, "drive.upload")) return NextResponse.json({ error: "Chỉ quản trị viên có thể upload tệp." }, { status: 403 });
     const form = await request.formData();
     const file = form.get("file");
     const parentId = form.get("parentId");

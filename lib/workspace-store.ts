@@ -4,6 +4,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { PushSubscriptionRecord, TeamMember, Task, WorkspaceNotification } from "./types";
 import { DEFAULT_PROJECT_SETTINGS, type ProjectSettings } from "./project-settings";
+import { normalizeBriefImages } from "./brief-images";
 
 export type StoredMember = TeamMember & { passwordHash: string };
 export type StoredSession = { tokenHash: string; memberId: string; expiresAt: string };
@@ -26,21 +27,21 @@ function normalizeWorkspace(data: WorkspaceData): WorkspaceData {
     sessions: data.sessions ?? [],
     notifications: data.notifications ?? [],
     pushSubscriptions: data.pushSubscriptions ?? [],
-    settings: data.settings ?? DEFAULT_PROJECT_SETTINGS,
+    settings: { ...DEFAULT_PROJECT_SETTINGS, ...(data.settings ?? {}) },
     members: data.members.map((member) => ({
       ...member,
       avatarUrl: member.avatarUrl || undefined,
       mustChangePassword: member.mustChangePassword ?? true
     })),
     tasks: data.tasks.map((task) => {
-      const { durationMinutes: _durationMinutes, ...withoutDuration } = task as Task & { durationMinutes?: unknown };
+      const { durationMinutes: _durationMinutes, code: _legacyCode, ...withoutLegacyFields } = task as Task & { durationMinutes?: unknown; code?: unknown };
       const startTime = task.startTime || "09:00";
       const endTime = task.endTime || ({ "09:00": "11:00", "11:00": "13:00", "13:00": "15:00", "15:00": "17:00", "17:00": "19:00" }[startTime] ?? "19:00");
       const assigneeIds = Array.isArray(task.assigneeIds)
         ? task.assigneeIds.filter((id) => data.members.some((member) => member.id === id))
         : data.members.filter((member) => member.name === task.owner).map((member) => member.id);
       const owner = assigneeIds.map((id) => data.members.find((member) => member.id === id)?.name).filter(Boolean).join(", ") || "Chưa phân công";
-      return { ...withoutDuration, assigneeIds, owner, startDate: task.startDate || task.deadline || null, startTime, endTime,
+      return { ...withoutLegacyFields, assigneeIds, owner, briefUrl: task.briefUrl ?? null, briefFinalUrl: task.briefFinalUrl ?? null, briefImages: normalizeBriefImages(task.briefImages), linkedBriefIds: task.linkedBriefIds ?? [], startDate: task.startDate || task.deadline || null, startTime, endTime,
         reminderDate: task.reminderDate ?? null, reminderTime: task.reminderTime ?? null, reminderRepeat: task.reminderRepeat ?? "none", reminderOffsets: task.reminderOffsets ?? [] };
     })
   };

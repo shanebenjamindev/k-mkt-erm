@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { statusLabels, taskStartDate, workTypeLabels, type Task, type TaskInput } from "../../lib/types";
+import { TaskFormatSelect } from "./TaskFormatSelect";
 import { AssigneePicker } from "./AssigneePicker";
 import { DateRangePicker } from "./DateRangePicker";
 import { TaskReminderEditor } from "./TaskReminderEditor";
+import { BriefContent } from "./BriefContent";
 import { LinkifiedText } from "./LinkifiedText";
 import { useWorkspace } from "./WorkspaceProvider";
 
-const timeOptions = ["09:00", "11:00", "13:00", "15:00", "17:00", "19:00"];
 
 export function formatDate(date: string | null | undefined) {
   if (!date) return "Chưa đặt";
@@ -19,6 +21,13 @@ export function formatDateRange(startDate: string | null | undefined, deadline: 
   if (!deadline) return "Chưa đặt";
   const start = startDate ?? deadline;
   return start === deadline ? formatDate(deadline) : `${formatDate(start)} – ${formatDate(deadline)}`;
+}
+
+function formatReminderOffset(minutes: number) {
+  if (!minutes) return "Đúng giờ";
+  if (minutes % 1440 === 0) return `${minutes / 1440} ngày trước`;
+  if (minutes % 60 === 0) return `${minutes / 60} giờ trước`;
+  return `${minutes} phút trước`;
 }
 
 function todayIso() {
@@ -43,11 +52,14 @@ function taskInput(task: Task): TaskInput {
     reminderRepeat: task.reminderRepeat,
     reminderOffsets: task.reminderOffsets,
     format: task.format,
-    brief: task.brief
+    brief: task.brief,
+    briefUrl: task.briefUrl,
+    linkedBriefIds: task.linkedBriefIds
   };
 }
 
 export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; openTaskId?: string | null; onTaskOpened?: () => void }) {
+  const router = useRouter();
   const { updateTask, removeTask, members } = useWorkspace();
   const [selected, setSelected] = useState<Task | null>(null);
   const [draft, setDraft] = useState<TaskInput | null>(null);
@@ -106,7 +118,7 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
       {items.length === 0
         ? <div className="empty-row">Chưa có công việc phù hợp.</div>
         : items.map((task) => <button className="row" key={task.id} onClick={() => { setSelected(task); setInlineEditing(false); setDraft(null); setActionError(null); }}>
-          <span><em>{task.code}</em><strong>{task.title}</strong><small>{task.format || "Chưa xác định"}{task.brief ? " · Có brief" : ""}</small></span>
+          <span><strong>{task.title}<span className="task-name-format"> · {task.format || "Chưa xác định"}</span></strong><small>{task.brief.trim() || task.briefUrl ? "Có brief" : "Chưa có brief"}</small></span>
           <span data-label="Người phụ trách">{task.owner}</span>
           <span data-label="Loại" className={task.workType === "inhouse" ? "pill green" : "pill purple"}>{workTypeLabels[task.workType]}</span>
           <span data-label="Thời gian">{formatDateRange(taskStartDate(task), task.deadline)}</span>
@@ -119,33 +131,29 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
         <button className="close" aria-label="Đóng" onClick={() => setSelected(null)}>×</button>
         <small>{inlineEditing ? "CHỈNH SỬA CÔNG VIỆC" : "CHI TIẾT CÔNG VIỆC"}</small>
         {inlineEditing && draft ? <form onSubmit={saveInline}>
-          <h2>{selected.code} · <input className="inline-title" required value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} /></h2>
+          <h2><input className="inline-title" required value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} /></h2>
           <div className="form-grid inline-detail-form">
             <AssigneePicker members={members} value={draft.assigneeIds ?? []} onChange={(assigneeIds) => updateDraft("assigneeIds", assigneeIds)} disabled={saving}/>
             <div className="field full"><span>Thời gian thực hiện</span><DateRangePicker startDate={draft.startDate} endDate={draft.deadline} onChange={(startDate, deadline) => setDraft((current) => current ? { ...current, startDate, deadline } : current)} /></div>
             <label className="field">Loại công việc<select value={draft.workType} onChange={(event) => updateDraft("workType", event.target.value as TaskInput["workType"])}>{Object.entries(workTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label className="field">Trạng thái<select value={draft.status} onChange={(event) => updateDraft("status", event.target.value as TaskInput["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label className="field">Giờ bắt đầu<select value={draft.startTime} onChange={(event) => { const startTime = event.target.value; setDraft((current) => current ? { ...current, startTime, endTime: current.endTime > startTime ? current.endTime : timeOptions[timeOptions.indexOf(startTime) + 1] } : current); }}>{timeOptions.slice(0, -1).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
-            <label className="field">Giờ kết thúc<select value={draft.endTime} onChange={(event) => updateDraft("endTime", event.target.value)}>{timeOptions.filter((time) => time > draft.startTime).map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
             <TaskReminderEditor value={draft} onChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)} disabled={saving}/>
-            <label className="field">Định dạng<input value={draft.format} onChange={(event) => updateDraft("format", event.target.value)} /></label>
-            <label className="field full">Brief nội dung<textarea rows={4} value={draft.brief} onChange={(event) => updateDraft("brief", event.target.value)} /></label>
+            <label className="field">Định dạng / bàn giao<TaskFormatSelect value={draft.format} onChange={(format) => updateDraft("format", format)} disabled={saving}/></label>
           </div>
           {actionError && <p className="form-error">{actionError}</p>}
           <div className="form-actions"><button type="button" className="secondary" onClick={() => { setInlineEditing(false); setDraft(null); setActionError(null); }}>Huỷ</button><button className="primary" disabled={saving}>{saving ? "Đang lưu…" : "Lưu thay đổi"}</button></div>
         </form> : <>
-          <h2>{selected.code} · {selected.title}</h2>
+          <h2>{selected.title}</h2>
           <div className="details">
             <span>Người phụ trách<strong>{selected.owner}</strong></span>
             <span>Loại<strong>{workTypeLabels[selected.workType]}</strong></span>
             <span>Thời gian<strong>{formatDateRange(taskStartDate(selected), selected.deadline)}</strong></span>
-            <span>Thời gian<strong>{selected.startTime} – {selected.endTime}</strong></span>
             <span>Định dạng<strong>{selected.format || "Chưa xác định"}</strong></span>
             <span>Trạng thái<strong>{statusLabels[selected.status]}</strong></span>
             <span>Nhắc công việc<strong>{selected.reminderDate && selected.reminderTime ? `${formatDate(selected.reminderDate)} · ${selected.reminderTime}${selected.reminderRepeat === "daily" ? " · Mỗi ngày" : selected.reminderRepeat === "weekly" ? " · Mỗi tuần" : ""}` : "Chưa đặt"}</strong></span>
-            <span>Nhắc trước giờ bắt đầu<strong>{selected.reminderOffsets.length ? selected.reminderOffsets.map((minutes) => minutes === 0 ? "Đúng giờ" : `${minutes} phút trước`).join(", ") : "Chưa đặt"}</strong></span>
+            <span>Nhắc trước giờ bắt đầu<strong>{selected.reminderOffsets.length ? selected.reminderOffsets.map(formatReminderOffset).join(", ") : "Chưa đặt"}</strong></span>
           </div>
-          <div className="brief"><b>BRIEF NỘI DUNG</b><p><LinkifiedText text={selected.brief || "Chưa có brief. Hãy bổ sung yêu cầu và thông điệp chính cho công việc này."} /></p></div>
+          <div className="brief"><b>BRIEF NỘI DUNG</b>{selected.brief ? <BriefContent html={selected.brief}/> : <p>Chưa có brief. Hãy bổ sung yêu cầu và thông điệp chính cho công việc này.</p>}{selected.briefUrl && <a className="brief-source-link" href={selected.briefUrl} target="_blank" rel="noreferrer noopener">Mở Google Docs ↗</a>}<button type="button" className="secondary brief-open-editor" onClick={() => router.push(`/briefs/${encodeURIComponent(selected.id)}`)}>Mở trang brief ↗</button></div>
           {actionError && <p className="form-error">{actionError}</p>}
           <div className="form-actions"><button className="danger" disabled={saving} onClick={() => void destroy()}>Xoá</button><span/><button className="secondary" disabled={saving} onClick={() => { setDraft(taskInput(selected)); setInlineEditing(true); setActionError(null); }}>Chỉnh sửa</button><button className="primary" onClick={() => setSelected(null)}>Xong</button></div>
         </>}

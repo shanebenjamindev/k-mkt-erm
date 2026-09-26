@@ -13,19 +13,14 @@
 .task-sheet tbody tr.selected td{background:#eef5ff}
 .task-sheet th:nth-child(1),.task-sheet td:nth-child(1){width:38px;text-align:center}
 .task-sheet th:nth-child(2),.task-sheet td:nth-child(2){width:42px;text-align:center}
-.task-sheet th:nth-child(3),.task-sheet td:nth-child(3){width:68px}
-.task-sheet th:nth-child(4),.task-sheet td:nth-child(4){width:260px}
-.task-sheet th:nth-child(5),.task-sheet td:nth-child(5){width:160px}
-.task-sheet th:nth-child(6),.task-sheet td:nth-child(6){width:105px}
-.task-sheet th:nth-child(7),.task-sheet td:nth-child(7){width:210px}
-.task-sheet th:nth-child(8),.task-sheet td:nth-child(8),.task-sheet th:nth-child(9),.task-sheet td:nth-child(9){width:82px}
-.task-sheet th:nth-child(10),.task-sheet td:nth-child(10){width:180px}
-.task-sheet th:nth-child(11),.task-sheet td:nth-child(11){width:125px}
+.task-sheet th:nth-child(3),.task-sheet td:nth-child(3){width:260px}
+.task-sheet th:nth-child(4),.task-sheet td:nth-child(4){width:160px}
+.task-sheet th:nth-child(5),.task-sheet td:nth-child(5){width:105px}
+.task-sheet th:nth-child(6),.task-sheet td:nth-child(6){width:210px}
+.task-sheet th:nth-child(7),.task-sheet td:nth-child(7){width:180px}
+.task-sheet th:nth-child(8),.task-sheet td:nth-child(8){width:125px}
 .sheet-checkbox input{width:14px;height:14px;accent-color:#d62828;cursor:pointer}
 .sheet-row-number{color:#97a2b1;font-size:10px}
-.sheet-code{white-space:nowrap}
-.sheet-code button{border:0;background:transparent;padding:0;color:#376fd0;cursor:pointer;font:inherit;font-size:10px;font-weight:800;text-decoration:underline;text-underline-offset:3px}
-.sheet-code button:hover{color:#174fbc}
 .sheet-input,.sheet-select{display:block;width:calc(100% + 16px);height:41px;margin:0 -8px;border:1px solid transparent;background:transparent;padding:0 8px;color:#243144;font:inherit;outline:0}
 .sheet-input:hover,.sheet-select:hover{background:#f8fbff}
 .sheet-input:focus,.sheet-select:focus{position:relative;z-index:2;border-color:#4285f4;background:#fff;box-shadow:inset 0 0 0 1px #4285f4}

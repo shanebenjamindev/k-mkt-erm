@@ -1,11 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { requestJson } from "../../lib/client-request";
 import { DEFAULT_PROJECT_SETTINGS, type ProjectSettings } from "../../lib/project-settings";
 import { useAuth } from "./AuthProvider";
 
-type ContextValue = { settings: ProjectSettings; loading: boolean; error: string | null; save: (settings: ProjectSettings) => Promise<void>; refresh: () => Promise<void> };
+type ContextValue = { settings: ProjectSettings; loading: boolean; error: string | null; logoRevision: number; save: (settings: ProjectSettings) => Promise<void>; refresh: () => Promise<void> };
 const Context = createContext<ContextValue | null>(null);
 const CHANGE_KEY = "k-mkt-project-settings-changed";
 
@@ -26,24 +27,38 @@ function applySettings(settings: ProjectSettings) {
   root.style.setProperty("--accent-soft", `color-mix(in srgb, ${settings.accentColor} 12%, white)`);
   root.style.setProperty("--workspace-background-image", settings.backgroundImage ? `url("${settings.backgroundImage}")` : "none");
   root.dataset.backgroundPreset = settings.backgroundPreset;
+  root.dataset.theme = settings.themeMode === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : settings.themeMode;
+  root.dataset.contrast = settings.highContrast ? "high" : "normal";
 }
 
 export function ProjectSettingsProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const userId = user?.id;
   const [settings, setSettings] = useState(DEFAULT_PROJECT_SETTINGS);
+  const [logoRevision, setLogoRevision] = useState(0);
+  const logoUrlRef = useRef("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => { setLogoRevision(Date.now()); }, []);
   const refresh = useCallback(async () => {
-    if (!userId) return;
     try {
+      if (!userId) {
+        const { brand } = await requestJson<{ brand: { projectName: string; projectLogoUrl: string } }>("/api/brand", { cache: "no-store" });
+        setSettings((current) => ({ ...current, projectName: brand.projectName, projectLogoUrl: brand.projectLogoUrl }));
+        setError(null);
+        return;
+      }
       const result = await requestJson<{ settings: ProjectSettings }>("/api/settings", { cache: "no-store" });
       setSettings(result.settings); setError(null);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể tải cài đặt."); }
     finally { setLoading(false); }
   }, [userId]);
   useEffect(() => {
-    if (!userId) { setSettings(DEFAULT_PROJECT_SETTINGS); setLoading(false); return; }
+    if (!userId) {
+      setLoading(true);
+      void refresh().finally(() => setLoading(false));
+      return;
+    }
     setLoading(true);
     void refresh();
     const sync = (event: StorageEvent) => { if (event.key === CHANGE_KEY) void refresh(); };
@@ -54,13 +69,48 @@ export function ProjectSettingsProvider({ children }: { children: React.ReactNod
     document.addEventListener("visibilitychange", focus);
     return () => { window.clearInterval(timer); window.removeEventListener("storage", sync); window.removeEventListener("focus", focus); document.removeEventListener("visibilitychange", focus); };
   }, [userId, refresh]);
-  useEffect(() => { applySettings(settings); }, [settings]);
+  useEffect(() => {
+    if (logoUrlRef.current === settings.projectLogoUrl) return;
+    logoUrlRef.current = settings.projectLogoUrl;
+    setLogoRevision((revision) => revision + 1);
+  }, [settings.projectLogoUrl]);
+  useEffect(() => {
+    applySettings(settings);
+    if (settings.themeMode !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const updateTheme = () => { document.documentElement.dataset.theme = media.matches ? "dark" : "light"; };
+    media.addEventListener("change", updateTheme);
+    return () => media.removeEventListener("change", updateTheme);
+  }, [settings]);
   const save = async (next: ProjectSettings) => {
     const result = await requestJson<{ settings: ProjectSettings }>("/api/settings", { method: "PATCH", body: JSON.stringify(next) });
     setSettings(result.settings); setError(null);
     try { localStorage.setItem(CHANGE_KEY, String(Date.now())); } catch { /* Other tabs can refresh later. */ }
   };
-  return <Context.Provider value={{ settings, loading, error, save, refresh }}>{children}</Context.Provider>;
+  return <Context.Provider value={{ settings, loading, error, logoRevision, save, refresh }}><ProjectFavicon/><>{children}</></Context.Provider>;
+}
+
+function ProjectFavicon() {
+  const { settings, logoRevision } = useProjectSettings();
+  const pathname = usePathname();
+  useEffect(() => {
+    const source = `/api/brand-icon?v=${logoRevision}`;
+    const iconLinks = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel~="icon"],link[rel="apple-touch-icon"]'));
+    if (!iconLinks.some((link) => link.relList.contains("icon"))) {
+      const link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+      iconLinks.push(link);
+    }
+    if (!iconLinks.some((link) => link.rel === "apple-touch-icon")) {
+      const link = document.createElement("link");
+      link.rel = "apple-touch-icon";
+      document.head.appendChild(link);
+      iconLinks.push(link);
+    }
+    iconLinks.forEach((link) => { if (link.href !== new URL(source, window.location.origin).toString()) link.href = source; });
+  }, [pathname, settings.projectLogoUrl, logoRevision]);
+  return null;
 }
 
 export function useProjectSettings() {

@@ -5,6 +5,7 @@ import { WorkspaceShell } from "../components/WorkspaceShell";
 import { useAuth } from "../components/AuthProvider";
 import { Icon } from "../components/Icon";
 import type { DriveItem } from "../../lib/google-drive";
+import { can } from "../../lib/permissions";
 
 import { requestJson } from "../../lib/client-request";
 
@@ -13,7 +14,7 @@ type TrailItem = { id: string; name: string };
 
 export default function DrivePage() {
   const { user } = useAuth();
-  const isAdmin = user?.accessRole === "admin";
+  const isAdmin = can(user, "drive.manage");
   const [items, setItems] = useState<DriveItem[]>([]);
   const [trail, setTrail] = useState<TrailItem[]>([]);
   const [connected, setConnected] = useState<boolean | null>(null);

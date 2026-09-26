@@ -97,7 +97,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<WorkspaceContextValue>(() => ({
     tasks, members, loading, loaded, error, refresh,
     createTask: (input) => mutate("task:create", async () => {
-      const { task } = await requestJson<{ task: Task }>("/api/tasks", { method: "POST", body: JSON.stringify(input) });
+      const { task, warning } = await requestJson<{ task: Task; warning?: string }>("/api/tasks", { method: "POST", body: JSON.stringify(input) });
+      if (warning && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("workspace:notification-warning", { detail: warning }));
       if (activeSession.current === session) applyTasks((current) => [...current.filter((item) => item.id !== task.id), task]);
       return task;
     }),
@@ -105,7 +106,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       const previous = tasksRef.current.find((task) => task.id === id);
       if (input.status) applyTasks((current) => current.map((item) => item.id === id ? { ...item, status: input.status! } : item));
       try {
-        const { task } = await requestJson<{ task: Task }>(`/api/tasks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+        const { task, warning } = await requestJson<{ task: Task; warning?: string }>(`/api/tasks/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(input) });
+        if (warning && typeof window !== "undefined") window.dispatchEvent(new CustomEvent("workspace:notification-warning", { detail: warning }));
         if (activeSession.current === session) applyTasks((current) => current.map((item) => item.id === id ? task : item));
         return task;
       } catch (cause) {
