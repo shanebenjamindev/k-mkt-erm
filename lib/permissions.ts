@@ -11,6 +11,7 @@ export type PermissionAction =
   | "task.delete"
   | "brief.create"
   | "brief.edit"
+  | "ads.read"
   | "notification.read";
 
 export type PermissionSubject = { accessRole: AccessRole; mustChangePassword?: boolean } | null | undefined;
