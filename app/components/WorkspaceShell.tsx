@@ -16,7 +16,8 @@ const links: Array<{ href: string; icon: IconName; label: string }> = [
   { href: "/tasks", icon: "tasks", label: "Tất cả công việc" },
   { href: "/calendar", icon: "calendar", label: "Lịch sản xuất" },
   { href: "/briefs", icon: "briefsNav", label: "Brief & tài liệu" },
-  { href: "/drive", icon: "drive", label: "Video & Drive" }
+  { href: "/drive", icon: "drive", label: "Video & Drive" },
+  { href: "/ads", icon: "ads", label: "Quảng cáo" }
 ];
 
 export function WorkspaceShell({ children, title = "Workspace" }: { children: React.ReactNode; title?: string }) {
