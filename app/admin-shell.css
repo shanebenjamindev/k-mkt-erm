@@ -11,7 +11,7 @@
   .brand>div,.sidebar nav>p,.nav-label,.profile .profile-link>div,.profile .logout{display:none}
   .sidebar nav{width:100%}
   .nav{position:relative;display:grid;min-height:46px;place-items:center;margin:3px 0;padding:12px}
-  .nav b{position:absolute;top:4px;right:4px;float:none;min-width:15px;border-radius:8px;background:#edf1f6;color:#667085;font-size:9px;line-height:15px;text-align:center}
+  .nav b{position:absolute;top:4px;right:4px;float:none;min-width:15px;border-radius:4px;background:#edf1f6;color:#667085;font-size:9px;line-height:15px;text-align:center}
   .nav.active b{background:#fff;color:#c32020}
   .nav-icon{display:grid;place-items:center}
   .profile{width:100%;justify-content:center;padding:16px 0 0}
@@ -26,8 +26,8 @@
   .mobile-menu-backdrop{position:fixed;z-index:1100;inset:0;display:block;border:0;background:#17203366;cursor:default}
   .content{width:100%;padding:0 18px 30px}
   .content>header{height:62px;margin:0 -18px 25px;padding:0 18px;gap:10px}
-  .admin-menu-toggle{display:grid;width:34px;height:34px;flex:none;place-content:center;gap:4px;border:1px solid #dfe4ed;border-radius:7px;background:#fff;color:#526074;cursor:pointer}
-  .admin-menu-toggle span{display:block;width:15px;height:2px;border-radius:9px;background:currentColor}
+  .admin-menu-toggle{display:grid;width:34px;height:34px;flex:none;place-content:center;gap:4px;border:1px solid #dfe4ed;border-radius:3px;background:#fff;color:#526074;cursor:pointer}
+  .admin-menu-toggle span{display:block;width:15px;height:2px;border-radius:4px;background:currentColor}
   .workspace-crumb{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
   .header-actions{margin-left:auto}
 }

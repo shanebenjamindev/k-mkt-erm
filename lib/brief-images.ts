@@ -19,6 +19,12 @@ export function normalizeBriefImages(value: unknown): BriefImage[] {
     if (!src && !driveFileId) return [];
     return [{
       id: image.id, src, driveFileId,
+      label: typeof image.label === "string" ? image.label.slice(0, 200) : undefined,
+      feedback: Array.isArray(image.feedback) ? image.feedback.filter((entry): entry is import("./types").ImageFeedback => {
+        if (!entry || typeof entry !== "object") return false;
+        const box = entry as Record<string, unknown>;
+        return typeof box.id === "string" && typeof box.text === "string" && box.text.length <= 2000 && [box.x, box.y, box.width, box.height].every(n => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1) && Number(box.x) + Number(box.width) <= 1.00001 && Number(box.y) + Number(box.height) <= 1.00001;
+      }).slice(0, 100) : [],
       ...(image.source === "upload" || image.source === "url" ? { source: image.source } : {}),
       title: typeof image.title === "string" ? image.title : "",
       content: typeof image.content === "string" ? image.content : "",

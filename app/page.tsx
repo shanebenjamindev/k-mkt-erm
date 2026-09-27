@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { AnimatedWorkspaceArt } from "./components/AnimatedWorkspaceArt";
 import { useEffect, useMemo, useState } from "react";
 import { WorkspaceShell } from "./components/WorkspaceShell";
 import { WorkspaceState } from "./components/WorkspaceState";
@@ -47,7 +48,7 @@ export default function Dashboard() {
   const openTasks = tasks.filter((task) => task.status !== "completed");
 
   return <WorkspaceShell><WorkspaceState>
-    <div className="intro"><div><small>{todayLabel}</small><h1>Xin chào, {user?.name || "bạn"} <i>✦</i></h1><p>Đây là tình hình công việc của phòng Marketing hôm nay.</p></div><button className="primary" onClick={() => setCreating(true)}>＋ Tạo công việc</button></div>
+    <div className="intro dashboard-entry"><div><small>{todayLabel}</small><h1>Xin chào, {user?.name || "bạn"} <i>✦</i></h1><p>Đây là tình hình công việc của phòng Marketing hôm nay.</p></div><div className="dashboard-intro-actions"><AnimatedWorkspaceArt/><button className="primary" onClick={() => setCreating(true)}>＋ Tạo công việc</button></div></div>
     <div className="stats"><Stat label="Tổng công việc" value={stats.total} note="Toàn bộ workspace"/><Stat label="Đang thực hiện" value={stats.inProgress} note={stats.total ? `${Math.round(stats.inProgress / stats.total * 100)}% tổng task` : "Chưa có task"}/><Stat label="Đã hoàn thành" value={stats.completed} note={`${stats.completionRate}% tổng công việc`}/><Stat label="Cần chú ý" value={stats.attention} note={`${stats.overdue} quá hạn · ${stats.dueSoon} sắp đến hạn`}/></div>
     <div className="dashboard-charts"><StatusChart tasks={tasks}/><WeekChart tasks={tasks}/></div>
     <EfficiencyAnalysis tasks={tasks} total={stats.total} completed={stats.completed} open={stats.open} completionRate={stats.completionRate} overdue={overdueTasks} inHouse={stats.inHouse} outsource={stats.outsource} today={today}/>
@@ -115,7 +116,7 @@ function WeekChart({ tasks }: { tasks: Task[] }) {
   return <section className="chart-card" aria-labelledby="week-chart-title">
     <header className="chart-card-header"><div><h2 id="week-chart-title">Sản lượng theo ngày</h2><p>Số task đang diễn ra trong tuần này.</p></div><ChartViewPicker value={view} onChange={setView} label="Kiểu biểu đồ sản lượng" options={[{ value: "bar", label: "Cột" }, { value: "line", label: "Đường" }, { value: "list", label: "Số liệu" }]}/></header>
     {view === "bar" && <div className="week-chart">{dates.map((date, index) => <Link href={`/tasks?date=${date}`} className="week-bar chart-mark" key={date} title={`${formatDate(date)}: ${values[index]} công việc`} aria-label={`Xem ${values[index]} công việc ngày ${formatDate(date)}`}><span style={{ height: `${Math.max(7, values[index] / max * 100)}%` }}><b>{values[index]}</b></span><small>{weekdays[index]}</small></Link>)}</div>}
-    {view === "line" && <div className="week-line-wrap"><svg className="week-line-chart" viewBox="0 0 700 160" role="img" aria-label="Biểu đồ đường số công việc theo ngày"><line x1="30" y1="132" x2="670" y2="132"/><line x1="30" y1="82" x2="670" y2="82"/><line x1="30" y1="32" x2="670" y2="32"/><polyline points={points}/>{values.map((value, index) => <Link key={dates[index]} href={`/tasks?date=${dates[index]}`} aria-label={`${formatDate(dates[index])}: ${value} công việc`}><circle cx={40 + index * 103.3} cy={132 - value / max * 100} r="8"><title>{formatDate(dates[index])}: {value} công việc</title></circle></Link>)}</svg><div className="week-line-labels">{weekdays.map((day, index) => <Link key={dates[index]} href={`/tasks?date=${dates[index]}`} title={`Xem ${values[index]} task · ${formatDate(dates[index])}`}>{day}<b>{values[index]}</b></Link>)}</div></div>}
+    {view === "line" && <div className="week-line-wrap"><svg className="week-line-chart" viewBox="0 0 700 160" role="img" aria-label="Biểu đồ đường số công việc theo ngày"><line x1="30" y1="132" x2="670" y2="132"/><line x1="30" y1="82" x2="670" y2="82"/><line x1="30" y1="32" x2="670" y2="32"/><polyline points={points} pathLength={1}/>{values.map((value, index) => <Link key={dates[index]} href={`/tasks?date=${dates[index]}`} aria-label={`${formatDate(dates[index])}: ${value} công việc`}><circle cx={40 + index * 103.3} cy={132 - value / max * 100} r="8"><title>{formatDate(dates[index])}: {value} công việc</title></circle></Link>)}</svg><div className="week-line-labels">{weekdays.map((day, index) => <Link key={dates[index]} href={`/tasks?date=${dates[index]}`} title={`Xem ${values[index]} task · ${formatDate(dates[index])}`}>{day}<b>{values[index]}</b></Link>)}</div></div>}
     {view === "list" && <div className="chart-number-list week-number-list">{dates.map((date, index) => <Link href={`/tasks?date=${date}`} key={date}><i className="week-dot"/><span>{weekdays[index]} · {formatDate(date)}</span><b>{values[index]}</b><small>{busiest ? Math.round(values[index] / busiest * 100) : 0}% cao điểm</small></Link>)}</div>}
   </section>;
 }

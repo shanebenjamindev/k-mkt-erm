@@ -1,4 +1,5 @@
 "use client";
+import { StatusProgress } from "./StatusProgress";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -130,13 +131,13 @@ export function TaskTable({ items, openTaskId, onTaskOpened }: { items: Task[]; 
       <div className="modal task-detail" role="dialog" aria-modal="true" aria-label="Chi tiết công việc" onMouseDown={(event) => event.stopPropagation()}>
         <button className="close" aria-label="Đóng" onClick={() => setSelected(null)}>×</button>
         <small>{inlineEditing ? "CHỈNH SỬA CÔNG VIỆC" : "CHI TIẾT CÔNG VIỆC"}</small>
-        {inlineEditing && draft ? <form onSubmit={saveInline}>
+        {inlineEditing && draft ? <form onSubmit={saveInline}><StatusProgress value={draft.status} disabled={saving} onChange={(status) => updateDraft("status", status)}/>
           <h2><input className="inline-title" required value={draft.title} onChange={(event) => updateDraft("title", event.target.value)} /></h2>
           <div className="form-grid inline-detail-form">
             <AssigneePicker members={members} value={draft.assigneeIds ?? []} onChange={(assigneeIds) => updateDraft("assigneeIds", assigneeIds)} disabled={saving}/>
             <div className="field full"><span>Thời gian thực hiện</span><DateRangePicker startDate={draft.startDate} endDate={draft.deadline} onChange={(startDate, deadline) => setDraft((current) => current ? { ...current, startDate, deadline } : current)} /></div>
             <label className="field">Loại công việc<select value={draft.workType} onChange={(event) => updateDraft("workType", event.target.value as TaskInput["workType"])}>{Object.entries(workTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <label className="field">Trạng thái<select value={draft.status} onChange={(event) => updateDraft("status", event.target.value as TaskInput["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+
             <TaskReminderEditor value={draft} onChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)} disabled={saving}/>
             <label className="field">Định dạng / bàn giao<TaskFormatSelect value={draft.format} onChange={(format) => updateDraft("format", format)} disabled={saving}/></label>
           </div>

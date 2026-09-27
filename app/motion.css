@@ -1,0 +1,86 @@
+/* Finite CSS motion only. No network assets or persistent animation loops. */
+.dashboard-intro-actions { display:flex; align-items:center; gap:12px; flex:none; }
+.workspace-motion-art { display:block; flex:none; }
+@media(prefers-reduced-motion:no-preference) {
+  .workspace-motion-card { animation:workspace-card-float 3s ease-in-out 2; }
+  .workspace-motion-card:nth-of-type(2) { animation-delay:.2s; }
+  .workspace-motion-card:nth-of-type(3) { animation-delay:.4s; }
+  .workspace-motion-spark { animation:workspace-spark 3s ease-in-out 2; }
+  .login-card,.brief-gallery-popup,.brief-gallery-viewer,.brief-gallery-side-rail { animation:workspace-appear 180ms ease-out both; }
+  .stats>.stat { animation:workspace-appear 260ms ease-out both; }
+  .stats>.stat:nth-child(2) { animation-delay:35ms; }
+  .stats>.stat:nth-child(3) { animation-delay:70ms; }
+  .stats>.stat:nth-child(4) { animation-delay:105ms; }
+  .nav-icon svg,.header-task-link svg,.brief-gallery-trigger svg { transition:transform 160ms ease-out; }
+  .status-progress button { transition:background-color 160ms ease-out,color 160ms ease-out; }
+}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference) {
+  .nav:hover .nav-icon svg,.header-task-link:hover svg,.brief-gallery-trigger:hover svg { transform:translateY(-2px); }
+}
+@keyframes workspace-card-float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-3px); } }
+@keyframes workspace-spark { 0%,100% { opacity:.45; } 50% { opacity:1; } }
+@keyframes workspace-appear { from { opacity:0; } to { opacity:1; } }
+@media(max-width:700px) { .workspace-motion-art { display:none; } .dashboard-intro-actions { gap:0; } }
+@media(prefers-reduced-motion:reduce) {
+  .workspace-motion-art *,.login-card,.brief-gallery-popup,.brief-gallery-viewer,.brief-gallery-side-rail,.stats>.stat { animation:none !important; }
+  .nav-icon svg,.header-task-link svg,.brief-gallery-trigger svg,.status-progress button { transition:none !important; }
+}
+
+/* Dashboard entrance: stable layout, one run when its content mounts. */
+@media(prefers-reduced-motion:no-preference) {
+  .content:has(.dashboard-entry) .dashboard-entry,
+  .content:has(.dashboard-entry) .stats>.stat,
+  .content:has(.dashboard-entry) .chart-card,
+  .content:has(.dashboard-entry) .efficiency-card,
+  .content:has(.dashboard-entry) .table,
+  .content:has(.dashboard-entry) .lower>.card {
+    animation:dashboard-frame-in 440ms cubic-bezier(.2,.7,.2,1) backwards;
+  }
+  .content:has(.dashboard-entry) .stats>.stat:nth-child(1) { animation-delay:40ms; }
+  .content:has(.dashboard-entry) .stats>.stat:nth-child(2) { animation-delay:85ms; }
+  .content:has(.dashboard-entry) .stats>.stat:nth-child(3) { animation-delay:130ms; }
+  .content:has(.dashboard-entry) .stats>.stat:nth-child(4) { animation-delay:175ms; }
+  .content:has(.dashboard-entry) .chart-card:nth-child(1) { animation-delay:160ms; }
+  .content:has(.dashboard-entry) .chart-card:nth-child(2) { animation-delay:220ms; }
+  .content:has(.dashboard-entry) .efficiency-card { animation-delay:260ms; }
+  .content:has(.dashboard-entry) .table { animation-delay:300ms; }
+  .content:has(.dashboard-entry) .lower>.card { animation-delay:340ms; }
+  .content:has(.dashboard-entry) .lower>.card:nth-child(2) { animation-delay:390ms; }
+  .content:has(.dashboard-entry) .status-bar>.bar,
+  .content:has(.dashboard-entry) .week-bar>span {
+    transform-origin:center bottom;
+    animation:dashboard-bar-in 650ms cubic-bezier(.2,.7,.2,1) 250ms backwards;
+  }
+  .content:has(.dashboard-entry) .chart-mark:nth-child(2)>span { animation-delay:290ms; }
+  .content:has(.dashboard-entry) .chart-mark:nth-child(3)>span { animation-delay:330ms; }
+  .content:has(.dashboard-entry) .chart-mark:nth-child(4)>span { animation-delay:370ms; }
+  .content:has(.dashboard-entry) .chart-mark:nth-child(5)>span { animation-delay:410ms; }
+  .content:has(.dashboard-entry) .chart-mark:nth-child(6)>span { animation-delay:450ms; }
+  .content:has(.dashboard-entry) .chart-mark:nth-child(7)>span { animation-delay:490ms; }
+  .content:has(.dashboard-entry) .chart-mark b { animation:workspace-appear 180ms ease-out 800ms backwards; }
+  .content:has(.dashboard-entry) .status-donut { animation:dashboard-ring-in 650ms ease-out 250ms backwards; }
+  .content:has(.dashboard-entry) .week-line-chart>polyline {
+    stroke-dasharray:1;
+    animation:dashboard-line-in 850ms ease-out 250ms backwards;
+  }
+  .content:has(.dashboard-entry) .week-line-chart circle { animation:workspace-appear 250ms ease-out 650ms backwards; }
+  .content:has(.dashboard-entry) .chart-number-list>a { animation:dashboard-frame-in 320ms ease-out 250ms backwards; }
+}
+@keyframes dashboard-frame-in { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes dashboard-bar-in { from { transform:scaleY(0); opacity:.3; } to { transform:scaleY(1); opacity:1; } }
+@keyframes dashboard-ring-in { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
+@keyframes dashboard-line-in { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
+@media(prefers-reduced-motion:reduce) {
+  .content:has(.dashboard-entry) .dashboard-entry,
+  .content:has(.dashboard-entry) .stats>.stat,
+  .content:has(.dashboard-entry) .chart-card,
+  .content:has(.dashboard-entry) .efficiency-card,
+  .content:has(.dashboard-entry) .table,
+  .content:has(.dashboard-entry) .lower>.card,
+  .content:has(.dashboard-entry) .chart-mark>span,
+  .content:has(.dashboard-entry) .chart-mark b,
+  .content:has(.dashboard-entry) .status-donut,
+  .content:has(.dashboard-entry) .week-line-chart>polyline,
+  .content:has(.dashboard-entry) .week-line-chart circle,
+  .content:has(.dashboard-entry) .chart-number-list>a { animation:none !important; }
+}

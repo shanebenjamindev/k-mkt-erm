@@ -15,6 +15,7 @@ import "./glass.css";
 import "./readability.css";
 import "./settings.css";
 import "./brief-layout.css";
+import "./motion.css";
 import { AuthProvider } from "./components/AuthProvider";
 import { WorkspaceProvider } from "./components/WorkspaceProvider";
 import { PwaRegistration } from "./components/PwaRegistration";

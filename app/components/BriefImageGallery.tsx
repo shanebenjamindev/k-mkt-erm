@@ -1,10 +1,12 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import type { BriefImage } from "../../lib/types";
 import { driveImagePreviewUrl } from "../../lib/drive-links";
 import { useWorkspace } from "./WorkspaceProvider";
 import { Icon } from "./Icon";
+import { BriefImageFeedback } from "./BriefImageFeedback";
 import { BriefImageAsset } from "./BriefImageAsset";
 
 type Props = { taskId: string; initialImages: BriefImage[]; initialFinalUrl: string | null };
@@ -105,7 +107,8 @@ export function BriefImageGallery({ taskId, initialImages, initialFinalUrl }: Pr
             const fallback = response.status === 413 ? "Ảnh vượt giới hạn dung lượng máy chủ. Hãy chọn ảnh nhỏ hơn." : response.status >= 500 ? `Máy chủ không lưu được ảnh (lỗi ${response.status}).` : `Không thể tải ảnh lên (lỗi ${response.status}).`;
             throw new Error(result.error || fallback);
           }
-          uploaded.push(result.image);
+          const number = Math.max(imagesRef.current.length, ...imagesRef.current.map(image => Number(image.label?.match(/^Hình (\d+)$/)?.[1]) || 0)) + uploaded.length + 1;
+          uploaded.push({ ...result.image, label: `Hình ${number}` });
         } catch (error) {
           failed += 1;
           if (!firstUploadError) firstUploadError = error instanceof Error ? error.message : "Không thể tải ảnh lên.";
@@ -135,7 +138,7 @@ export function BriefImageGallery({ taskId, initialImages, initialFinalUrl }: Pr
     } finally { setFinalUrlBusy(false); }
   };
 
-  const changeImage = (id: string, patch: Partial<Pick<BriefImage, "title" | "content">>) => {
+  const changeImage = (id: string, patch: Partial<Pick<BriefImage, "title" | "content" | "label">>) => {
     const next = imagesRef.current.map((image) => image.id === id ? { ...image, ...patch } : image);
     imagesRef.current = next;
     setImages(next);
@@ -158,13 +161,16 @@ export function BriefImageGallery({ taskId, initialImages, initialFinalUrl }: Pr
 
   useEffect(() => {
     if (viewerIndex === null) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const keydown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea")) return;
       if (event.key === "Escape") setViewerIndex(null);
       if (event.key === "ArrowRight") showImage(1);
       if (event.key === "ArrowLeft") showImage(-1);
     };
     window.addEventListener("keydown", keydown);
-    return () => window.removeEventListener("keydown", keydown);
+    return () => { window.removeEventListener("keydown", keydown); document.body.style.overflow = previousOverflow; };
   }, [viewerIndex, showImage]);
 
   return <>
@@ -179,14 +185,15 @@ export function BriefImageGallery({ taskId, initialImages, initialFinalUrl }: Pr
           <details className="brief-gallery-drive-import"><summary>URL ảnh final (tuỳ chọn)</summary><label>Link Drive ảnh final<input type="url" value={finalUrl} maxLength={2048} onChange={(event) => setFinalUrl(event.target.value)} placeholder="https://drive.google.com/file/d/.../view"/><button type="button" disabled={busy || finalUrlBusy || finalUrl.trim() === savedFinalUrl} onClick={() => void saveFinalUrl()}>{finalUrlBusy ? "Đang lưu…" : "Lưu URL ảnh final"}</button></label><small>Link đã lưu sẽ xuất hiện cạnh tên brief; ảnh tải lên được lưu trực tiếp trong brief.</small></details>
           {images.map((image, index) => <article className="brief-gallery-card" key={image.id}>
             <button type="button" className="brief-gallery-image" onClick={() => setViewerIndex(index)} aria-label={`Xem ảnh ${image.title || index + 1} trong gallery`}><BriefImageAsset src={imageSource(image)} alt={image.title || "Ảnh brief"}/><span>Mở gallery ↗</span></button>
-            <label>Tiêu đề<input value={image.title} maxLength={200} onChange={(event) => changeImage(image.id, { title: event.target.value })} onBlur={() => void persist(imagesRef.current)} placeholder="Nhập tiêu đề ảnh"/></label>
-            <label>Nội dung<textarea value={image.content} maxLength={2000} rows={3} onChange={(event) => changeImage(image.id, { content: event.target.value })} onBlur={() => void persist(imagesRef.current)} placeholder="Mô tả hoặc nội dung đi kèm ảnh"/></label>
+            <label>Tên / Label<input value={image.label ?? `Hình ${index + 1}`} maxLength={200} onChange={(event) => changeImage(image.id, { label: event.target.value })} onBlur={() => void persist(imagesRef.current)}/></label>
+            <label>Heading<input value={image.title} maxLength={200} onChange={(event) => changeImage(image.id, { title: event.target.value })} onBlur={() => void persist(imagesRef.current)} placeholder="Nhập tiêu đề ảnh"/></label>
+            <label>Description<textarea value={image.content} maxLength={2000} rows={3} onChange={(event) => changeImage(image.id, { content: event.target.value })} onBlur={() => void persist(imagesRef.current)} placeholder="Mô tả hoặc nội dung đi kèm ảnh"/></label>
             <button type="button" className="brief-gallery-remove" disabled={busy} onClick={() => removeImage(image.id)}>Gỡ khỏi brief</button>
           </article>)}
         </div>
         <footer className="brief-gallery-footer"><input ref={inputRef} type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/bmp" hidden onChange={(event) => { void uploadFiles(Array.from(event.currentTarget.files ?? [])); event.currentTarget.value = ""; }}/><button type="button" className="brief-gallery-upload" disabled={busy || finalUrlBusy || images.length >= 1000} onClick={() => inputRef.current?.click()}>{busy ? "Đang tải/lưu…" : "＋ Tải ảnh lên"}</button><span role="status">{message}</span></footer>
       </section>
     </>}
-    {viewerIndex !== null && images[viewerIndex] && <div className="brief-gallery-viewer" role="dialog" aria-modal="true" aria-label="Xem ảnh toàn màn hình" onClick={() => setViewerIndex(null)}><button type="button" className="brief-gallery-viewer-close" aria-label="Đóng gallery" onClick={() => setViewerIndex(null)}>×</button><button type="button" className="brief-gallery-prev" aria-label="Ảnh trước" onClick={(event) => { event.stopPropagation(); showImage(-1); }}>‹</button><figure onClick={(event) => event.stopPropagation()}><BriefImageAsset src={imageSource(images[viewerIndex])} alt={images[viewerIndex].title || "Ảnh brief"} mode="viewer"/><figcaption><strong>{images[viewerIndex].title || "Ảnh brief"}</strong>{images[viewerIndex].content && <p>{images[viewerIndex].content}</p>}<small>{viewerIndex + 1} / {images.length}</small></figcaption></figure><button type="button" className="brief-gallery-next" aria-label="Ảnh tiếp theo" onClick={(event) => { event.stopPropagation(); showImage(1); }}>›</button></div>}
+    {viewerIndex !== null && images[viewerIndex] && createPortal(<div className="brief-gallery-viewer" role="dialog" aria-modal="true" aria-label="Xem ảnh toàn màn hình" onClick={() => setViewerIndex(null)}><button type="button" className="brief-gallery-viewer-close" aria-label="Đóng gallery" onClick={() => setViewerIndex(null)}>×</button><button type="button" className="brief-gallery-prev" aria-label="Ảnh trước" onClick={(event) => { event.stopPropagation(); showImage(-1); }}>‹</button><figure onClick={(event) => event.stopPropagation()}><BriefImageFeedback key={images[viewerIndex].id} image={images[viewerIndex]} src={imageSource(images[viewerIndex])} onSave={(feedback) => persist(imagesRef.current.map(image => image.id === images[viewerIndex].id ? { ...image, feedback } : image))}/><figcaption>{message && <p role="status">{message}</p>}<strong>{images[viewerIndex].label || `Hình ${viewerIndex + 1}`}</strong><p><b>Heading: </b>{images[viewerIndex].title || "—"}</p><p><b>Description: </b>{images[viewerIndex].content || "—"}</p><small>{viewerIndex + 1} / {images.length}</small></figcaption><nav className="brief-gallery-thumbnails" aria-label="Chọn ảnh">{images.map((image, index) => <button type="button" key={image.id} aria-pressed={viewerIndex === index} onClick={() => setViewerIndex(index)}><BriefImageAsset src={imageSource(image)} alt={image.label || `Hình ${index + 1}`}/><span>{image.label || `Hình ${index + 1}`}</span></button>)}</nav></figure><button type="button" className="brief-gallery-next" aria-label="Ảnh tiếp theo" onClick={(event) => { event.stopPropagation(); showImage(1); }}>›</button></div>, document.body)}
   </>;
 }

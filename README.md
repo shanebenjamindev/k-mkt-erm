@@ -98,3 +98,7 @@ Form tạo/sửa task hỗ trợ tối đa 5 mốc thông báo trước giờ b�
 ## Brief nội dung và Google Docs
 
 Form task có trình soạn thảo brief hỗ trợ tiêu đề, nhấn mạnh, danh sách, trích dẫn và liên kết. Có thể dán link tài liệu Google Docs rồi chọn **Tải nội dung Docs** để nhập nội dung vào brief; task vẫn lưu link gốc để mở lại tài liệu. Tính năng nhập dùng OAuth Google Drive server-side hiện có, nên tài khoản OAuth phải được cấp quyền đọc tài liệu và tài liệu cần được chia sẻ với tài khoản kết nối. Nội dung nhập được lọc HTML an toàn và giới hạn 100 KB. Với Supabase, áp dụng [`supabase/migrations/20260926_task_brief_docs.sql`](./supabase/migrations/20260926_task_brief_docs.sql) trước khi deploy để lưu `brief_url`; local JSON được nâng cấp tự động.
+
+## Cảnh báo hydration do extension trình duyệt
+
+Nếu lỗi chỉ ra `bis_skin_checked`, `bis_register` hoặc `__processed_…`, các thuộc tính này được extension Chrome thêm vào HTML trước khi React hydrate. Tắt quyền chạy của extension gây lỗi trên localhost/website rồi tải lại trang. Cửa sổ ẩn danh vẫn có thể chạy extension nếu đã được cho phép; dùng Guest Profile để kiểm tra riêng. Không dùng `suppressHydrationWarning` trên toàn bộ ứng dụng vì sẽ che cả lỗi hydration thật.

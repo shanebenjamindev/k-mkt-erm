@@ -1,4 +1,5 @@
 "use client";
+import { StatusProgress } from "./StatusProgress";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -49,6 +50,7 @@ export function TaskFormModal({ task, onClose, onSaved }: Props) {
 
   return <div className="overlay" role="presentation" onMouseDown={onClose}>
     <form className="modal task-form" onSubmit={submit} onMouseDown={(event) => event.stopPropagation()}>
+      <StatusProgress value={form.status} disabled={saving} onChange={(status) => set("status", status)}/>
       <button type="button" className="close" aria-label="Đóng" onClick={onClose}>×</button>
       <small>{task ? "CHỈNH SỬA CÔNG VIỆC" : "CÔNG VIỆC MỚI"}</small>
       <h2>{task ? "Chỉnh sửa công việc" : "Tạo công việc"}</h2>
@@ -66,7 +68,7 @@ export function TaskFormModal({ task, onClose, onSaved }: Props) {
           <div className="task-form-section-fields">
             <div className="field full task-date-field"><span>Thời gian thực hiện</span><DateRangePicker startDate={form.startDate} endDate={form.deadline} onChange={(startDate, deadline) => setForm((current) => ({ ...current, startDate, deadline, reminderDate: current.reminderDate && current.reminderDate > deadline ? deadline : current.reminderDate }))} label="Chọn khoảng ngày thực hiện"/></div>
             <label className="field">Loại công việc<select value={form.workType} onChange={(event) => set("workType", event.target.value as TaskInput["workType"])}>{Object.entries(workTypeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-            <label className="field">Trạng thái<select value={form.status} onChange={(event) => set("status", event.target.value as TaskInput["status"])}>{Object.entries(statusLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
+
           </div>
         </section>
         <section className="task-form-section">

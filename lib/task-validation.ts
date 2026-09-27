@@ -34,6 +34,12 @@ export function isTaskPatch(value: unknown): value is Partial<TaskInput> {
     catch { return false; }
   }
   if (item.briefImages !== undefined && (!Array.isArray(item.briefImages) || item.briefImages.length > 1000 || !item.briefImages.every((image: any) => image && typeof image.id === "string" && image.id.length <= 100 && (typeof image.src === "string" && image.src.startsWith("/api/brief-images/") || typeof image.driveFileId === "string" && /^[a-zA-Z0-9_-]{10,200}$/.test(image.driveFileId)) && typeof image.title === "string" && image.title.length <= 200 && typeof image.content === "string" && image.content.length <= 2000 && typeof image.createdAt === "string" && Number.isFinite(Date.parse(image.createdAt))))) return false;
+  if (Array.isArray(item.briefImages) && !item.briefImages.every((image: any) =>
+    (image.label === undefined || typeof image.label === "string" && image.label.length <= 200) &&
+    (image.feedback === undefined || Array.isArray(image.feedback) && image.feedback.length <= 100 && image.feedback.every((box: any) =>
+      box && typeof box.id === "string" && box.id.length <= 100 && typeof box.text === "string" && box.text.length <= 2000 &&
+      [box.x, box.y, box.width, box.height].every((n: unknown) => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1) &&
+      box.x + box.width <= 1.00001 && box.y + box.height <= 1.00001)))) return false;
   for (const field of ["format", "brief"] as const) if (item[field] !== undefined && (typeof item[field] !== "string" || item[field].length > 100_000)) return false;
   if (item.briefUrl !== undefined && item.briefUrl !== null && (typeof item.briefUrl !== "string" || item.briefUrl.length > 2048 || !/^https:\/\/(docs\.google\.com\/document\/d\/|drive\.google\.com\/)/i.test(item.briefUrl))) return false;
   for (const field of ["startDate", "deadline"] as const) if (item[field] !== undefined && !isCalendarDate(item[field])) return false;

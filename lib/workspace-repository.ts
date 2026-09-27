@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { normalizeBriefImages } from "./brief-images";
-import { DEFAULT_PROJECT_SETTINGS, type ProjectSettings } from "./project-settings";
+import { DEFAULT_PROJECT_SETTINGS, normalizeWorkflow, type ProjectSettings } from "./project-settings";
 import { dueRelativeOffsets, nextScheduledAt, taskReminderDue, vietnamNow } from "./reminder-schedule";
 import { isCalendarDate, isClockTime, TaskValidationError } from "./task-validation";
 import { hashPassword } from "./password";
@@ -743,6 +743,7 @@ export async function getProjectSettings(): Promise<ProjectSettings> {
     }
     return data ? {
       ...DEFAULT_PROJECT_SETTINGS,
+      workflow: normalizeWorkflow(data.workflow),
       projectName: data.project_name ?? DEFAULT_PROJECT_SETTINGS.projectName,
       projectDescription: data.project_description ?? "",
       projectLogoUrl: data.project_logo_url ?? "",
@@ -761,6 +762,7 @@ export async function getProjectSettings(): Promise<ProjectSettings> {
 export async function saveProjectSettings(settings: ProjectSettings): Promise<ProjectSettings> {
   const normalized: ProjectSettings = {
     ...settings,
+    workflow: normalizeWorkflow(settings.workflow),
     projectName: settings.projectName.trim(),
     projectDescription: settings.projectDescription.trim(),
     projectLogoUrl: settings.projectLogoUrl.trim(),
@@ -771,6 +773,7 @@ export async function saveProjectSettings(settings: ProjectSettings): Promise<Pr
   if (isRemote()) {
     const { data, error } = await database().from("workspace_settings").upsert({
       id: 1,
+      workflow: normalized.workflow,
       project_name: normalized.projectName,
       project_description: normalized.projectDescription,
       project_logo_url: normalized.projectLogoUrl,
@@ -786,6 +789,7 @@ export async function saveProjectSettings(settings: ProjectSettings): Promise<Pr
     if (error || !data) fail(error, "Không thể lưu cài đặt dự án");
     return {
       ...DEFAULT_PROJECT_SETTINGS,
+      workflow: normalizeWorkflow(data.workflow),
       projectName: data.project_name,
       projectDescription: data.project_description ?? "",
       projectLogoUrl: data.project_logo_url ?? "",

@@ -7,7 +7,8 @@ export type WorkType = (typeof WORK_TYPES)[number];
 export type AccessRole = (typeof ACCESS_ROLES)[number];
 export type ReminderRepeat = "none" | "daily" | "weekly";
 
-export type BriefImage = { id: string; src?: string; source?: "upload" | "url"; driveFileId?: string; title: string; content: string; createdAt: string };
+export type ImageFeedback = { id: string; x: number; y: number; width: number; height: number; text: string };
+export type BriefImage = { label?: string; feedback?: ImageFeedback[]; id: string; src?: string; source?: "upload" | "url"; driveFileId?: string; title: string; content: string; createdAt: string };
 
 export type Task = {
   id: string;
