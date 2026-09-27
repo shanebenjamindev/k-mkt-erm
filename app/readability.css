@@ -285,3 +285,9 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .task-reminder-row input{width:76px}.task-reminder-row select{width:100px}.task-reminder-row>span:not(.sr-only){font-size:13px;color:#5c5055}
 .task-reminder-add{justify-self:start;border:1px solid #e0b3ae;border-radius:4px;padding:8px 11px;background:#fff7f5;color:#a62828;font-weight:700;cursor:pointer}
 .task-reminder-custom{border-top:1px solid #eed9d6;padding-top:10px}.task-reminder-custom summary{cursor:pointer;font-weight:700;color:#6c4145}.task-reminder-toggle{display:flex;align-items:center;gap:8px;margin-top:10px;color:#51484c;font-size:13px}
+
+.task-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-top: 20px; padding: 16px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+.task-pagination label, .task-pagination-actions { display: flex; align-items: center; gap: 10px; }
+.task-pagination select { padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--glass); color: var(--ink); }
+.task-pagination button:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 640px) { .task-pagination { align-items: flex-start; } .task-pagination-actions { width: 100%; justify-content: space-between; } }

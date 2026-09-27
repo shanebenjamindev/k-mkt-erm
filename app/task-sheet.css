@@ -13,12 +13,12 @@
 .task-sheet tbody tr.selected td{background:#eef5ff}
 .task-sheet th:nth-child(1),.task-sheet td:nth-child(1){width:38px;text-align:center}
 .task-sheet th:nth-child(2),.task-sheet td:nth-child(2){width:42px;text-align:center}
-.task-sheet th:nth-child(3),.task-sheet td:nth-child(3){width:260px}
-.task-sheet th:nth-child(4),.task-sheet td:nth-child(4){width:160px}
-.task-sheet th:nth-child(5),.task-sheet td:nth-child(5){width:105px}
-.task-sheet th:nth-child(6),.task-sheet td:nth-child(6){width:210px}
-.task-sheet th:nth-child(7),.task-sheet td:nth-child(7){width:180px}
-.task-sheet th:nth-child(8),.task-sheet td:nth-child(8){width:125px}
+.task-sheet th:nth-child(4),.task-sheet td:nth-child(4){width:260px}
+.task-sheet th:nth-child(5),.task-sheet td:nth-child(5){width:160px}
+.task-sheet th:nth-child(6),.task-sheet td:nth-child(6){width:105px}
+.task-sheet th:nth-child(7),.task-sheet td:nth-child(7){width:210px}
+.task-sheet th:nth-child(8),.task-sheet td:nth-child(8){width:180px}
+.task-sheet th:nth-child(9),.task-sheet td:nth-child(9){width:125px}
 .sheet-checkbox input{width:14px;height:14px;accent-color:#d62828;cursor:pointer}
 .sheet-row-number{color:#97a2b1;font-size:10px}
 .sheet-input,.sheet-select{display:block;width:calc(100% + 16px);height:41px;margin:0 -8px;border:1px solid transparent;background:transparent;padding:0 8px;color:#243144;font:inherit;outline:0}
@@ -42,3 +42,7 @@
 .task-sheet-wrap{margin-right:-2px;border-radius:4px}
 .task-sheet th{font-size:9px}
 }
+
+.task-sheet th:nth-child(3),.task-sheet td:nth-child(3){width:44px;text-align:center}
+.sheet-view-column svg{vertical-align:middle}
+.sheet-view-column .sheet-open-task{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;padding:0}

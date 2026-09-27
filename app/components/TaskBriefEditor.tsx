@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { briefToHtml, sanitizeBriefHtml } from "../../lib/brief-html";
-import { requestJson } from "../../lib/client-request";
 
 type Props = { value: string; docUrl?: string | null; onChange: (brief: string, docUrl: string | null) => void; disabled?: boolean; toolbarVariant?: "standard" | "docs"; fontSize?: number };
 type Tool = { command: string; label: string; title: string; value?: string };
@@ -15,19 +14,13 @@ const tools: Tool[] = [
 export function TaskBriefEditor({ value, docUrl, onChange, disabled = false, toolbarVariant = "standard", fontSize = 11 }: Props) {
   const editor = useRef<HTMLDivElement>(null);
   const focused = useRef(false);
-  const [url, setUrl] = useState(docUrl ?? "");
-  const [importing, setImporting] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => { setUrl(docUrl ?? ""); }, [docUrl]);
   useEffect(() => {
     if (!editor.current || focused.current) return;
     const html = briefToHtml(value);
     if (editor.current.innerHTML !== html) editor.current.innerHTML = html;
   }, [value]);
 
-  const commit = () => onChange(sanitizeBriefHtml(editor.current?.innerHTML ?? ""), url.trim() || null);
+  const commit = () => onChange(sanitizeBriefHtml(editor.current?.innerHTML ?? ""), docUrl ?? null);
   const exec = (command: string, commandValue?: string) => {
     if (!editor.current || disabled) return;
     editor.current.focus();
@@ -38,18 +31,6 @@ export function TaskBriefEditor({ value, docUrl, onChange, disabled = false, too
   const promptLink = () => {
     const href = window.prompt("Dán liên kết https:// hoặc mailto:");
     if (href && /^(https?:\/\/|mailto:)/i.test(href.trim())) exec("createLink", href.trim());
-  };
-  const importDoc = async () => {
-    if (!url.trim() || importing) return;
-    setImporting(true); setError(""); setMessage("");
-    try {
-      const result = await requestJson<{ brief: string; url: string }>("/api/briefs/import", { method: "POST", body: JSON.stringify({ url: url.trim() }) });
-      focused.current = false;
-      setUrl(result.url);
-      onChange(result.brief, result.url);
-      setMessage("Đã nhập nội dung từ Google Docs / Drive vào brief.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Không thể tải nội dung tài liệu."); }
-    finally { setImporting(false); }
   };
 
   return <div className="task-brief-editor field full">
@@ -62,8 +43,6 @@ export function TaskBriefEditor({ value, docUrl, onChange, disabled = false, too
           <span className="brief-toolbar-group" aria-label="Chèn nội dung"><button type="button" title="Chèn liên kết" aria-label="Chèn liên kết" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={promptLink}>↗</button></span>
         </>}
       </div>
-      <details className="brief-doc-panel"><summary><span>Nhập nội dung từ Google Docs / Drive</span><small>{docUrl ? "Đã liên kết tài liệu" : "Tuỳ chọn"}</small></summary><div className="brief-doc-import"><input id="task-brief-doc-link" type="url" value={url} disabled={disabled || importing} onChange={(event) => { setUrl(event.target.value); onChange(value, event.target.value || null); }} placeholder="Dán link Google Docs hoặc ảnh Drive"/><button type="button" className="secondary" disabled={disabled || importing || !url.trim()} onClick={() => void importDoc()}>{importing ? "Đang tải…" : "Nhập nội dung"}</button></div></details>
-      {message && <p className="brief-import-message" role="status">{message}</p>}{error && <p className="form-error" role="alert">{error}</p>}
     </div>
     <div ref={editor} className="brief-editor-content" style={{ fontSize: toolbarVariant === "docs" ? `${fontSize}pt` : undefined }} contentEditable={!disabled} suppressContentEditableWarning role="textbox" aria-multiline="true" aria-label="Nội dung brief" data-placeholder="Viết nội dung brief…" onFocus={() => { focused.current = true; }} onInput={commit} onBlur={() => { focused.current = false; commit(); }}/>
     {docUrl && <a className="brief-source-link" href={docUrl} target="_blank" rel="noreferrer noopener">Mở tài liệu gốc ↗</a>}
