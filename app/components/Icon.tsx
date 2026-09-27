@@ -1,10 +1,11 @@
 import type { SVGProps } from "react";
 
-export type IconName = "eye" | "dashboard" | "tasks" | "calendar" | "briefs" | "briefsNav" | "briefCard" | "drive" | "users" | "settings" | "logout" | "folder" | "video" | "file" | "image" | "upload" | "plus" | "chevronLeft" | "more" | "edit" | "trash" | "refresh" | "external" | "close" | "warning" | "bell";
+export type IconName = "eye" | "dashboard" | "ads" | "tasks" | "calendar" | "briefs" | "briefsNav" | "briefCard" | "drive" | "users" | "settings" | "logout" | "folder" | "video" | "file" | "image" | "upload" | "plus" | "chevronLeft" | "more" | "edit" | "trash" | "refresh" | "external" | "close" | "warning" | "bell";
 
 const paths: Record<IconName, React.ReactNode> = {
   eye: <><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></>,
   dashboard: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
+  ads: <><path d="M3 20h18M6 17v-5M12 17V7M18 17V4"/><circle cx="6" cy="9" r="1"/><circle cx="12" cy="4" r="1"/></>,
   tasks: <><path d="M9 11.5 11 13.5l4-4"/><path d="M20 12a8 8 0 1 1-4-6.9"/></>,
   calendar: <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></>,
   briefs: <><path d="M4 4h12M10 4v11M7 15h6M4 4v3M16 4v3M4 20h16M16 11h4M16 15h4"/></>,
