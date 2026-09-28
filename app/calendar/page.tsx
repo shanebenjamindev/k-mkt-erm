@@ -36,7 +36,7 @@ type MultiDaySegment = {
   continuesBefore: boolean;
   continuesAfter: boolean;
 };
-type EventStyle = CSSProperties & Record<"--event-bg" | "--event-bar" | "--event-text" | "--event-status-color" | "--event-alert-border" | "--event-alert-bg" | "--event-alert-text", string>;
+type EventStyle = CSSProperties & Record<"--event-bg" | "--event-bar" | "--event-text" | "--event-status-color" | "--event-type-color" | "--event-alert-border" | "--event-alert-bg" | "--event-alert-text", string>;
 
 export default function CalendarPage() {
   const { tasks, updateTask } = useWorkspace();
@@ -148,10 +148,11 @@ function CalendarEventCard({ event, onSelect, onQuickStatus, className = "", sty
   const statusColor = event.status === "completed" ? "#526071" : step.color ?? WORKFLOW_COLORS[event.status];
   const presentation = getCalendarTaskPresentation(event.task);
   const cardStyle: EventStyle = {
-    "--event-bg": event.status === "completed" ? "#EDF0F3" : `color-mix(in srgb, ${statusColor} 15%, white)`,
+    "--event-bg": event.status === "completed" ? "#EDF0F3" : `color-mix(in srgb, ${statusColor} 8%, ${presentation.type.background})`,
     "--event-bar": event.status === "completed" ? "#8793A3" : statusColor,
     "--event-text": event.status === "completed" ? "#526071" : "#263445",
     "--event-status-color": statusColor,
+    "--event-type-color": event.status === "completed" ? "#526071" : presentation.type.text,
     "--event-alert-border": calendarAlertTokens.border,
     "--event-alert-bg": calendarAlertTokens.background,
     "--event-alert-text": calendarAlertTokens.text,

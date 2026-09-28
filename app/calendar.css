@@ -57,6 +57,7 @@
 .event-time{color:var(--event-text);font-size:10px;line-height:1.3;opacity:.84;overflow-wrap:anywhere}
 .event-meta{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:auto}
 .event-meta i{border:1px solid currentColor;border-radius:6px;padding:2px 4px;color:var(--event-text);font-size:8px;font-style:normal;font-weight:800;line-height:1.15}
+.event-meta .event-type-chip{color:var(--event-type-color)}
 .event-status-chip{background:#ffffff85}
 .event-meta .event-status-chip{color:var(--event-status-color)}
 .is-overdue .event-status-chip{border-color:var(--event-alert-border);background:var(--event-alert-bg);color:var(--event-alert-text)}
