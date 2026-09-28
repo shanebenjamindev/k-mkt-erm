@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { calendarAlertTokens, calendarStatusPresentation, calendarWorkTypeTokens, getCalendarTaskPresentation } from "../../lib/calendar-presentation";
+import { normalizeWorkflow, WORKFLOW_COLORS, type WorkflowStep } from "../../lib/project-settings";
 import { TASK_STATUSES, WORK_TYPES, taskStartDate, workTypeLabels, type Task, type TaskStatus, type WorkType } from "../../lib/types";
 import { TaskFormModal } from "../components/TaskFormModal";
+import { useProjectSettings } from "../components/ProjectSettingsProvider";
 import { useWorkspace } from "../components/WorkspaceProvider";
 import { WorkspaceShell } from "../components/WorkspaceShell";
 import { WorkspaceState } from "../components/WorkspaceState";
@@ -34,10 +36,12 @@ type MultiDaySegment = {
   continuesBefore: boolean;
   continuesAfter: boolean;
 };
-type EventStyle = CSSProperties & Record<"--event-bg" | "--event-bar" | "--event-text" | "--event-completed-bg" | "--event-alert-border" | "--event-alert-bg" | "--event-alert-text", string>;
+type EventStyle = CSSProperties & Record<"--event-bg" | "--event-bar" | "--event-text" | "--event-status-color" | "--event-alert-border" | "--event-alert-bg" | "--event-alert-text", string>;
 
 export default function CalendarPage() {
-  const { tasks, loading, updateTask } = useWorkspace();
+  const { tasks, updateTask } = useWorkspace();
+  const { settings } = useProjectSettings();
+  const workflow = normalizeWorkflow(settings.workflow);
   const [view, setView] = useState<CalendarView>("week");
   const [currentDate, setCurrentDate] = useState(() => toIso(new Date()));
   const [creating, setCreating] = useState(false);
@@ -45,18 +49,9 @@ export default function CalendarPage() {
   const [visibleTypes, setVisibleTypes] = useState<WorkType[]>([...WORK_TYPES]);
   const [visibleStatuses, setVisibleStatuses] = useState<TaskStatus[]>([...TASK_STATUSES]);
   const [actionError, setActionError] = useState<string | null>(null);
-  const hasSelectedInitialDate = useRef(false);
   const events = useMemo(() => mergeCalendarEvents(normalizeEvents(tasks)), [tasks]);
   const filteredEvents = useMemo(() => events.filter((event) => visibleTypes.includes(event.task.workType) && visibleStatuses.includes(event.status)), [events, visibleStatuses, visibleTypes]);
   const unscheduledCount = tasks.filter((task) => !task.deadline).length;
-
-  useEffect(() => {
-    if (loading || hasSelectedInitialDate.current) return;
-    hasSelectedInitialDate.current = true;
-    const today = toIso(new Date());
-    const next = events.filter((event) => event.endDate >= today).sort((a, b) => a.startDate.localeCompare(b.startDate))[0] ?? events.at(-1);
-    if (next) setCurrentDate(next.startDate);
-  }, [events, loading]);
 
   const focusTask = (task: Task) => {
     const start = taskStartDate(task);
@@ -68,8 +63,8 @@ export default function CalendarPage() {
     if (view === "month") return shiftMonth(date, amount);
     return shiftYear(date, amount);
   });
-  const toggleType = (type: WorkType) => setVisibleTypes((current) => current.includes(type) ? current.filter((item) => item !== type) : [...current, type]);
-  const toggleStatus = (status: TaskStatus) => setVisibleStatuses((current) => current.includes(status) ? current.filter((item) => item !== status) : [...current, status]);
+  const toggleType = (type: WorkType) => setVisibleTypes((current) => current.length === 1 && current[0] === type ? [...WORK_TYPES] : [type]);
+  const toggleStatus = (status: TaskStatus) => setVisibleStatuses((current) => current.length === 1 && current[0] === status ? [...TASK_STATUSES] : [status]);
   const changeStatus = async (task: Task, status: TaskStatus) => {
     if (task.status === status) return;
     setActionError(null);
@@ -82,7 +77,7 @@ export default function CalendarPage() {
       <div className="page-heading"><div><small>WORKSPACE / CALENDAR</small><h1>Lịch sản xuất</h1><p>Xem tiến độ theo ngày, tuần, tháng hoặc toàn năm.</p></div><button className="primary" onClick={() => setCreating(true)}>＋ Thêm lịch</button></div>
       {unscheduledCount > 0 && <div className="calendar-missing-deadline"><span><b>{unscheduledCount} công việc</b> cũ chưa có deadline nên chưa thể đặt lên lịch.</span><Link href="/tasks">Bổ sung deadline</Link></div>}
       <div className="calendar-summary"><div><strong>{viewLabel(view, currentDate)}</strong><span>{filteredEvents.filter((event) => intersects(event, visibleDays(view, currentDate))).length} công việc trong phạm vi đang xem</span></div><div className="calendar-controls"><div className="calendar-view-toggle" aria-label="Chế độ xem lịch">{(["day", "week", "month", "year"] as CalendarView[]).map((mode) => <button type="button" className={view === mode ? "active" : ""} onClick={() => setView(mode)} key={mode}>{({ day: "Ngày", week: "Tuần", month: "Tháng", year: "Năm" })[mode]}</button>)}</div><button className="secondary" onClick={() => go(-1)} aria-label="Lùi lịch">←</button><button className="secondary" onClick={() => setCurrentDate(toIso(new Date()))}>Hôm nay</button><button className="secondary" onClick={() => go(1)} aria-label="Tiến lịch">→</button></div></div>
-      <CalendarLegend visibleTypes={visibleTypes} visibleStatuses={visibleStatuses} onToggleType={toggleType} onToggleStatus={toggleStatus}/>
+      <CalendarLegend visibleTypes={visibleTypes} visibleStatuses={visibleStatuses} onToggleType={toggleType} onToggleStatus={toggleStatus} workflow={workflow}/>
       {actionError && <p className="calendar-action-error" role="alert">{actionError}</p>}
       {view === "year" ? <YearView date={currentDate} events={filteredEvents} onPickDate={(nextDate) => { setCurrentDate(nextDate); setView("day"); }} /> : view === "month" ? <MonthView date={currentDate} events={filteredEvents} onSelect={setEditing} onQuickStatus={changeStatus} /> : <TimeGridView days={visibleDays(view, currentDate)} events={filteredEvents} onSelect={setEditing} onQuickStatus={changeStatus} />}
       <p className="calendar-note">Task được nhận diện bằng mã task, không phải tên. Công việc nhiều ngày chỉ hiển thị một block liên tục và chỉ tách tại ranh giới tuần/tháng.</p>
@@ -92,13 +87,13 @@ export default function CalendarPage() {
   </WorkspaceShell>;
 }
 
-function CalendarLegend({ visibleTypes, visibleStatuses, onToggleType, onToggleStatus }: { visibleTypes: WorkType[]; visibleStatuses: TaskStatus[]; onToggleType: (type: WorkType) => void; onToggleStatus: (status: TaskStatus) => void }) {
+function CalendarLegend({ visibleTypes, visibleStatuses, onToggleType, onToggleStatus, workflow }: { visibleTypes: WorkType[]; visibleStatuses: TaskStatus[]; onToggleType: (type: WorkType) => void; onToggleStatus: (status: TaskStatus) => void; workflow: WorkflowStep[] }) {
   return <div className="calendar-legend" aria-label="Bộ lọc lịch">
     <span className="calendar-legend-label">Loại</span>
     {WORK_TYPES.map((type) => <button type="button" className={`legend-filter type-${type} ${visibleTypes.includes(type) ? "active" : ""}`} onClick={() => onToggleType(type)} aria-pressed={visibleTypes.includes(type)} key={type}><i style={{ background: calendarWorkTypeTokens[type].bar }}/>{workTypeLabels[type]}</button>)}
     <span className="calendar-legend-divider"/>
     <span className="calendar-legend-label">Trạng thái</span>
-    {TASK_STATUSES.map((status) => <button type="button" className={`legend-filter status-${status} ${visibleStatuses.includes(status) ? "active" : ""}`} onClick={() => onToggleStatus(status)} aria-pressed={visibleStatuses.includes(status)} key={status}><b>{calendarStatusPresentation[status].icon}</b>{calendarStatusPresentation[status].label}</button>)}
+    {workflow.map((step) => <button type="button" className={`legend-filter status-${step.status} ${visibleStatuses.includes(step.status) ? "active" : ""}`} onClick={() => onToggleStatus(step.status)} aria-pressed={visibleStatuses.includes(step.status)} key={step.status}><b style={{ color: step.status === "completed" ? "#526071" : step.color ?? WORKFLOW_COLORS[step.status] }}>{calendarStatusPresentation[step.status].icon}</b>{step.label}</button>)}
   </div>;
 }
 
@@ -148,25 +143,28 @@ function MultiDayLanes({ days, events, onSelect, onQuickStatus, showAxis = false
 }
 
 function CalendarEventCard({ event, onSelect, onQuickStatus, className = "", style, continuesBefore = false, continuesAfter = false }: { event: CalendarEvent; onSelect: (task: Task) => void; onQuickStatus?: (task: Task, status: TaskStatus) => void; className?: string; style?: CSSProperties; continuesBefore?: boolean; continuesAfter?: boolean }) {
+  const { settings } = useProjectSettings();
+  const step = normalizeWorkflow(settings.workflow).find((item) => item.status === event.status)!;
+  const statusColor = event.status === "completed" ? "#526071" : step.color ?? WORKFLOW_COLORS[event.status];
   const presentation = getCalendarTaskPresentation(event.task);
   const cardStyle: EventStyle = {
-    "--event-bg": presentation.type.background,
-    "--event-bar": presentation.type.bar,
-    "--event-text": presentation.type.text,
-    "--event-completed-bg": presentation.type.completedBackground,
+    "--event-bg": event.status === "completed" ? "#EDF0F3" : `color-mix(in srgb, ${statusColor} 15%, white)`,
+    "--event-bar": event.status === "completed" ? "#8793A3" : statusColor,
+    "--event-text": event.status === "completed" ? "#526071" : "#263445",
+    "--event-status-color": statusColor,
     "--event-alert-border": calendarAlertTokens.border,
     "--event-alert-bg": calendarAlertTokens.background,
     "--event-alert-text": calendarAlertTokens.text,
     ...style
   } as EventStyle;
-  const detail = `${event.title}. ${rangeLabel(event)}. ${presentation.typeLabel}. ${presentation.status.label}. ${event.owner || "Chưa phân công"}${presentation.isOverdue ? ". Quá hạn" : ""}`;
-  return <div className={`calendar-event-wrapper ${className} ${onQuickStatus ? "has-quick-status" : ""}`} style={cardStyle}>
+  const detail = `${event.title}. ${rangeLabel(event)}. ${presentation.typeLabel}. ${step.label}. ${event.owner || "Chưa phân công"}${presentation.isOverdue ? ". Quá hạn" : ""}`;
+  return <div className={`calendar-event-wrapper ${className} ${onQuickStatus && event.status !== "completed" ? "has-quick-status" : ""}`} style={cardStyle}>
   <button type="button" className={`calendar-event-card status-${event.status} ${presentation.isOverdue ? "is-overdue" : ""}`} onClick={() => onSelect(event.task)} aria-label={`Mở chi tiết: ${detail}`} title={detail}>
     <span className="event-title"><b className="event-status-icon" aria-hidden="true">{presentation.isOverdue ? "!" : presentation.status.icon}</b><strong>{continuesBefore && <em aria-label="Tiếp tục từ kỳ trước">← </em>}{event.title}{continuesAfter && <em aria-label="Tiếp tục sang kỳ sau"> →</em>}</strong></span>
-    <span className="event-time">{rangeLabel(event)}</span>
-    <span className="event-meta"><i className="event-type-chip">{presentation.typeLabel}</i><i className="event-status-chip">{presentation.isOverdue ? "Quá hạn" : presentation.status.label}</i><small>{event.owner || "Chưa phân công"}</small></span>
+    {event.status !== "completed" && <span className="event-time">{rangeLabel(event)}</span>}
+    <span className="event-meta">{event.status !== "completed" && <i className="event-type-chip">{presentation.typeLabel}</i>}<i className="event-status-chip">{presentation.isOverdue ? "Quá hạn" : step.label}</i>{event.status !== "completed" && <small>{event.owner || "Chưa phân công"}</small>}</span>
   </button>
-  {onQuickStatus && <select className="event-quick-status" value={event.status} onClick={(clickEvent) => clickEvent.stopPropagation()} onChange={(changeEvent) => void onQuickStatus(event.task, changeEvent.target.value as TaskStatus)} aria-label={`Đổi trạng thái ${event.title}`}>{TASK_STATUSES.map((status) => <option value={status} key={status}>{calendarStatusPresentation[status].label}</option>)}</select>}
+  {onQuickStatus && event.status !== "completed" && <select className="event-quick-status" value={event.status} onClick={(clickEvent) => clickEvent.stopPropagation()} onChange={(changeEvent) => void onQuickStatus(event.task, changeEvent.target.value as TaskStatus)} aria-label={`Đổi trạng thái ${event.title}`}>{normalizeWorkflow(settings.workflow).map((item) => <option value={item.status} key={item.status}>{item.label}</option>)}</select>}
   </div>;
 }
 
@@ -182,13 +180,15 @@ function MonthView({ date, events, onSelect, onQuickStatus }: { date: string; ev
 }
 
 function YearView({ date, events, onPickDate }: { date: string; events: CalendarEvent[]; onPickDate: (date: string) => void }) {
+  const { settings } = useProjectSettings();
+  const workflow = normalizeWorkflow(settings.workflow);
   const year = date.slice(0, 4);
   return <div className="year-board">{Array.from({ length: 12 }, (_, index) => {
     const month = `${year}-${String(index + 1).padStart(2, "0")}-01`;
     const days = calendarDays(month);
     return <section className="year-month" key={month}><h2>{new Intl.DateTimeFormat("vi-VN", { month: "long", timeZone: "UTC" }).format(new Date(`${month}T00:00:00Z`))}</h2><div className="year-weekdays">{dayNames.map((name) => <span key={name}>{name.slice(0, 1)}</span>)}</div><div className="year-days">{days.map((day) => {
       const dayEvents = events.filter((event) => event.startDate <= day && day <= event.endDate);
-      return <button type="button" className={`${day.slice(0, 7) === month.slice(0, 7) ? "" : "outside"} ${isToday(day) ? "today" : ""} ${dayEvents.length ? "has-events" : ""}`.trim()} onClick={() => onPickDate(day)} title={dayEvents.map((event) => event.title).join("\n")} key={day}><span>{day.slice(8, 10)}</span>{dayEvents.length > 0 && <i aria-label={`${dayEvents.length} công việc`}>{dayEvents.slice(0, 3).map((event) => <b style={{ background: calendarWorkTypeTokens[event.task.workType].bar }} key={event.taskId}/>)}</i>}</button>;
+      return <button type="button" className={`${day.slice(0, 7) === month.slice(0, 7) ? "" : "outside"} ${isToday(day) ? "today" : ""} ${dayEvents.length ? "has-events" : ""}`.trim()} onClick={() => onPickDate(day)} title={dayEvents.map((event) => event.title).join("\n")} key={day}><span>{day.slice(8, 10)}</span>{dayEvents.length > 0 && <i aria-label={`${dayEvents.length} công việc`}>{dayEvents.slice(0, 3).map((event) => <b style={{ background: event.status === "completed" ? "#8793A3" : workflow.find((step) => step.status === event.status)?.color ?? WORKFLOW_COLORS[event.status] }} key={event.taskId}/>)}</i>}</button>;
     })}</div></section>;
   })}</div>;
 }

@@ -45,18 +45,20 @@
 .calendar-event-card.status-todo{border-style:dashed;border-left-style:solid}
 .calendar-event-card.status-in_progress{border-left-width:6px}
 .calendar-event-card.status-pending_review{border-width:2px;border-left-width:5px}
-.calendar-event-card.status-completed{background:var(--event-completed-bg);opacity:.82}
+.calendar-event-card.status-completed{border-color:#cbd2da;background:var(--event-bg)}
 .calendar-event-card.status-completed .event-title strong{text-decoration:line-through}
 .calendar-event-card.is-overdue{border-color:var(--event-alert-border);box-shadow:0 0 0 1px var(--event-alert-border)}
 .event-title{display:flex;align-items:flex-start;gap:5px;min-width:0}
 .event-title strong{display:block;min-width:0;color:var(--event-text);font-size:11px;line-height:1.28;overflow-wrap:anywhere}
 .event-title em{font-style:normal}
 .event-status-icon{display:grid;flex:0 0 14px;width:14px;height:14px;place-items:center;border:1px solid currentColor;border-radius:50%;font-size:10px;line-height:1}
+.event-status-icon,.event-status-chip{color:var(--event-status-color)}
 .is-overdue .event-status-icon{border-color:var(--event-alert-border);background:var(--event-alert-bg);color:var(--event-alert-text)}
 .event-time{color:var(--event-text);font-size:10px;line-height:1.3;opacity:.84;overflow-wrap:anywhere}
 .event-meta{display:flex;align-items:center;flex-wrap:wrap;gap:3px;margin-top:auto}
 .event-meta i{border:1px solid currentColor;border-radius:6px;padding:2px 4px;color:var(--event-text);font-size:8px;font-style:normal;font-weight:800;line-height:1.15}
 .event-status-chip{background:#ffffff85}
+.event-meta .event-status-chip{color:var(--event-status-color)}
 .is-overdue .event-status-chip{border-color:var(--event-alert-border);background:var(--event-alert-bg);color:var(--event-alert-text)}
 .event-meta small{width:100%;color:var(--event-text);font-size:9px;line-height:1.2;opacity:.78;overflow-wrap:anywhere}
 .calendar-more-wrap{position:relative;z-index:5}
