@@ -43,7 +43,8 @@ export default function Dashboard() {
       outsource: tasks.filter((task) => task.workType === "outsource").length
     };
   }, [tasks, today]);
-  const todayLabel = new Intl.DateTimeFormat("vi-VN", { weekday: "long", day: "numeric", month: "numeric", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date()).toLocaleUpperCase();
+  const todayWeekday = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date());
+  const todayLabel = `${({ Mon: "T2", Tue: "T3", Wed: "T4", Thu: "T5", Fri: "T6", Sat: "T7", Sun: "CN" } as Record<string, string>)[todayWeekday]} · ${new Intl.DateTimeFormat("vi-VN", { day: "numeric", month: "numeric", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date())}`;
   const overdueTasks = tasks.filter((task) => task.status !== "completed" && task.deadline && task.deadline < today);
   const openTasks = tasks.filter((task) => task.status !== "completed");
 

@@ -53,7 +53,7 @@ export function isTaskPatch(value: unknown): value is Partial<TaskInput> {
   if (item.workType !== undefined && !WORK_TYPES.includes(item.workType as TaskInput["workType"])) return false;
   if (item.status !== undefined && !TASK_STATUSES.includes(item.status as TaskInput["status"])) return false;
   if (typeof item.startDate === "string" && typeof item.deadline === "string" && item.startDate > item.deadline) return false;
-  if (typeof item.startTime === "string" && typeof item.endTime === "string" && item.startTime >= item.endTime) return false;
+  if (typeof item.startDate === "string" && typeof item.deadline === "string" && item.startDate === item.deadline && typeof item.startTime === "string" && typeof item.endTime === "string" && item.startTime >= item.endTime) return false;
   return true;
 }
 

@@ -99,11 +99,14 @@ function normalizeSchedule(input: TaskInput, allowUnscheduled = false): TaskInpu
   const deadline = input.deadline || startDate;
   const startTime = validTime(input.startTime);
   const endTime = validTime(input.endTime);
-  if (endTime <= startTime) throw new TaskValidationError("Giờ kết thúc phải sau giờ bắt đầu.");
   // Older tasks can be unscheduled; changing their status must remain possible.
-  if (allowUnscheduled && !startDate && !deadline) return { ...input, startDate: null, deadline: null, startTime, endTime };
+  if (allowUnscheduled && !startDate && !deadline) {
+    if (endTime <= startTime) throw new TaskValidationError("Giờ kết thúc phải sau giờ bắt đầu.");
+    return { ...input, startDate: null, deadline: null, startTime, endTime };
+  }
   if (!isCalendarDate(startDate) || !isCalendarDate(deadline)) throw new TaskValidationError("Vui lòng chọn ngày bắt đầu và ngày kết thúc hợp lệ.");
   if (startDate > deadline) throw new TaskValidationError("Ngày kết thúc phải sau hoặc trùng ngày bắt đầu.");
+  if (startDate === deadline && endTime <= startTime) throw new TaskValidationError("Giờ kết thúc phải sau giờ bắt đầu khi công việc diễn ra trong một ngày.");
   if (Boolean(input.reminderDate) !== Boolean(input.reminderTime)) throw new TaskValidationError("Vui lòng chọn cả ngày và giờ nhắc.");
   if (input.reminderDate && input.reminderTime && (input.reminderDate > deadline || !isCalendarDate(input.reminderDate) || !isClockTime(input.reminderTime))) throw new TaskValidationError("Lịch nhắc không hợp lệ hoặc sau hạn công việc.");
   return { ...input, startDate, deadline, startTime, endTime };

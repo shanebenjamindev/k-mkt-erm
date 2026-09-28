@@ -105,6 +105,14 @@ assert.match(briefToHtml('<img src="https://lh3.googleusercontent.com/image/abc"
   assert.equal((await repo.createScheduledReminders(new Date('2026-09-27T01:00:00Z'))).filter(item=>item.eventKey.includes(relative.id)).length,1);
   assert.equal((await repo.createScheduledReminders(new Date('2026-09-27T01:50:00Z'))).filter(item=>item.eventKey.includes(relative.id)).length,1);
   assert.equal((await repo.createScheduledReminders(new Date('2026-09-27T01:51:00Z'))).filter(item=>item.eventKey.includes(relative.id)).length,0);
+  const overnight = await repo.createTask({...input,title:'Cross-day schedule',startDate:'2026-09-27',deadline:'2026-09-28',startTime:'22:00',endTime:'06:00'});
+  const taskValidation = require(path.join(root,'compiled/task-validation.js'));
+  assert.equal(taskValidation.isTaskInput({...input,startDate:'2026-09-27',deadline:'2026-09-28',startTime:'22:00',endTime:'06:00'}),true);
+  assert.equal(taskValidation.isTaskInput({...input,startDate:'2026-09-27',deadline:'2026-09-27',startTime:'22:00',endTime:'06:00'}),false);
+  assert.equal(overnight.startTime,'22:00');
+  assert.equal(overnight.endTime,'06:00');
+  assert.equal((await repo.updateTask(overnight.id,{endTime:'05:30'})).endTime,'05:30');
+  await assert.rejects(repo.updateTask(overnight.id,{deadline:'2026-09-27'}),/Giờ kết thúc phải sau giờ bắt đầu/);
   const before = await store.readWorkspace();
   await assert.rejects(store.withWorkspaceTransaction(async()=>{const data=await store.readWorkspace();data.tasks=[];await store.writeWorkspace(data);throw Error('rollback');}));
   assert.equal((await store.readWorkspace()).tasks.length,before.tasks.length);

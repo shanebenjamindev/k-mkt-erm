@@ -1,3 +1,4 @@
+import { FacebookConnectionRequired, type FacebookCredentials } from "./facebook-connection";
 import { createHmac } from "node:crypto";
 
 export type AdsMetric = {
@@ -50,30 +51,7 @@ type MetaInsight = {
 
 export class AdsConfigurationError extends Error {}
 
-export function missingMetaConfiguration(): string[] {
-  const required = ["META_GRAPH_API_VERSION", "META_AD_ACCOUNT_ID", "META_ACCESS_TOKEN"] as const;
-  return required.filter((key) => !process.env[key]?.trim());
-}
-
-function configuration() {
-  const missing = missingMetaConfiguration();
-  if (missing.length) throw new AdsConfigurationError(`Thiếu cấu hình: ${missing.join(", ")}.`);
-  const version = process.env.META_GRAPH_API_VERSION!.trim();
-  const accountId = process.env.META_AD_ACCOUNT_ID!.trim().replace(/^act_/, "");
-  if (!/^v\d+\.\d+$/.test(version) || !/^\d+$/.test(accountId)) {
-    throw new AdsConfigurationError("Phiên bản Graph API hoặc mã tài khoản quảng cáo chưa hợp lệ.");
-  }
-  return {
-    version,
-    accountId,
-    token: process.env.META_ACCESS_TOKEN!.trim(),
-    secret: process.env.META_APP_SECRET?.trim(),
-    resultActionType: process.env.META_RESULT_ACTION_TYPE?.trim() || null,
-    revenueActionType: process.env.META_REVENUE_ACTION_TYPE?.trim() || null
-  };
-}
-
-type Config = ReturnType<typeof configuration>;
+type Config = FacebookCredentials & { accountId: string; resultActionType: string | null; revenueActionType: string | null };
 
 async function graphGet<T>(config: Config, resource: string, query: Record<string, string>): Promise<T> {
   const url = new URL(`https://graph.facebook.com/${config.version}/${resource}`);
@@ -90,9 +68,19 @@ async function graphGet<T>(config: Config, resource: string, query: Record<strin
     throw new Error("Không thể kết nối Meta Ads. Vui lòng thử lại.");
   }
   if (!response.ok) {
-    // Avoid returning the upstream request URL or token in a response to the browser.
+    // Only expose numeric error codes and our own messages, never upstream URLs or tokens.
+    const body = await response.json().catch(() => null) as { error?: { code?: number; error_subcode?: number } } | null;
+    const code = body?.error?.code;
+    const subcode = body?.error?.error_subcode;
+    const reference = typeof code === "number" ? ` (Meta #${code}${typeof subcode === "number" ? `/${subcode}` : ""})` : "";
+    if (code === 200 || code === 10) {
+      throw new Error(`Kết nối Meta chưa có quyền đọc tài khoản quảng cáo. Cấp quyền ads_read cho token và quyền truy cập tài khoản quảng cáo cho người dùng hoặc System User, sau đó đăng nhập Facebook lại.${reference}`);
+    }
+    if (code === 190) {
+      throw new FacebookConnectionRequired(`Phiên Facebook hết hạn hoặc bị thu hồi. Hãy đăng nhập Facebook lại.${reference}`);
+    }
     if (response.status === 400 || response.status === 401 || response.status === 403) {
-      throw new Error("Meta từ chối yêu cầu. Kiểm tra quyền ads_read, tài khoản, access token và phiên bản API.");
+      throw new Error(`Meta từ chối yêu cầu. Kiểm tra quyền ads_read, tài khoản, access token và phiên bản API.${reference}`);
     }
     throw new Error(`Meta Ads tạm thời không phản hồi (${response.status}).`);
   }
@@ -152,8 +140,9 @@ export function completeMetric(value: Additive): AdsMetric {
   };
 }
 
-export async function getMetaAdsReport(since: string, until: string): Promise<AdsReport> {
-  const config = configuration();
+export async function getMetaAdsReport(since: string, until: string, credentials: FacebookCredentials, accountId: string): Promise<AdsReport> {
+  if (!/^\d+$/.test(accountId)) throw new AdsConfigurationError("Mã tài khoản quảng cáo chưa hợp lệ.");
+  const config: Config = { ...credentials, accountId, resultActionType: process.env.META_RESULT_ACTION_TYPE?.trim() || null, revenueActionType: process.env.META_REVENUE_ACTION_TYPE?.trim() || null };
   const resource = `act_${config.accountId}`;
   const [account, campaigns, insights] = await Promise.all([
     graphGet<MetaAccount>(config, resource, { fields: "id,name,currency,timezone_name" }),

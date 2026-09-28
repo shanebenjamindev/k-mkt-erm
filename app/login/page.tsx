@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../components/AuthProvider";
 import { useProjectSettings } from "../components/ProjectSettingsProvider";
 
+function destination() {
+  // Only this known workspace route is accepted; never redirect to a supplied external URL.
+  return new URLSearchParams(window.location.search).get("next") === "/ads" ? "/ads" : "/";
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { user, loading, setupRequired, error: authError, login, setup } = useAuth();
@@ -17,7 +22,7 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { if (!loading && user) router.replace("/"); }, [loading, user, router]);
+  useEffect(() => { if (!loading && user) router.replace(destination()); }, [loading, user, router]);
   useEffect(() => { if (setupRequired) setIsSetup(true); }, [setupRequired]);
 
   const submittingRef = useRef(false);
@@ -31,7 +36,7 @@ export default function LoginPage() {
     try {
       if (isSetup) await setup(name, role, username, password);
       else await login(username, password);
-      router.replace("/");
+      router.replace(destination());
       router.refresh();
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "Không thể đăng nhập.";

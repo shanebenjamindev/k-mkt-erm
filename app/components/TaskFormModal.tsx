@@ -3,6 +3,7 @@ import { StatusProgress } from "./StatusProgress";
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { can } from "../../lib/permissions";
 import type { Task, TaskInput } from "../../lib/types";
 import { statusLabels, workTypeLabels } from "../../lib/types";
 import { AssigneePicker } from "./AssigneePicker";
@@ -11,23 +12,25 @@ import { DateRangePicker } from "./DateRangePicker";
 import { useWorkspace } from "./WorkspaceProvider";
 import { TaskFormatSelect } from "./TaskFormatSelect";
 import { BriefLinkPicker } from "./BriefLinkPicker";
+import { useAuth } from "./AuthProvider";
 
-type Props = { task?: Task | null; onClose: () => void; onSaved?: (task: Task) => void };
+type Props = { task?: Task | null; initialSchedule?: Partial<Pick<TaskInput, "startDate" | "deadline" | "startTime" | "endTime">>; onClose: () => void; onSaved?: (task: Task) => void };
 function todayIso() { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
 function newTask(): TaskInput { const today = todayIso(); return { title: "", owner: "Chưa phân công", assigneeIds: [], linkedBriefIds: [], workType: "inhouse", status: "todo", startDate: today, deadline: today, startTime: "09:00", endTime: "11:00", reminderDate: null, reminderTime: null, reminderRepeat: "none", reminderOffsets: [], format: "", brief: "", briefUrl: null }; }
 
-export function TaskFormModal({ task, onClose, onSaved }: Props) {
+export function TaskFormModal({ task, initialSchedule, onClose, onSaved }: Props) {
   const router = useRouter();
-  const { members, tasks, createTask, updateTask } = useWorkspace();
+  const { user } = useAuth();
+  const { members, tasks, createTask, updateTask, removeTask } = useWorkspace();
   const [form, setForm] = useState<TaskInput>(newTask);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setForm(task ? { title: task.title, owner: task.owner, assigneeIds: task.assigneeIds, linkedBriefIds: task.linkedBriefIds ?? [], workType: task.workType, status: task.status, startDate: task.startDate ?? task.deadline ?? todayIso(), deadline: task.deadline ?? task.startDate ?? todayIso(), startTime: task.startTime, endTime: task.endTime ?? "11:00", reminderDate: task.reminderDate, reminderTime: task.reminderTime, reminderRepeat: task.reminderRepeat, reminderOffsets: task.reminderOffsets, format: task.format, brief: task.brief, briefUrl: task.briefUrl } : newTask());
+    setForm(task ? { title: task.title, owner: task.owner, assigneeIds: task.assigneeIds, linkedBriefIds: task.linkedBriefIds ?? [], workType: task.workType, status: task.status, startDate: task.startDate ?? task.deadline ?? todayIso(), deadline: task.deadline ?? task.startDate ?? todayIso(), startTime: task.startTime, endTime: task.endTime ?? "11:00", reminderDate: task.reminderDate, reminderTime: task.reminderTime, reminderRepeat: task.reminderRepeat, reminderOffsets: task.reminderOffsets, format: task.format, brief: task.brief, briefUrl: task.briefUrl } : { ...newTask(), ...initialSchedule });
     setError(null);
-  }, [task]);
+  }, [task, initialSchedule]);
 
   const set = <K extends keyof TaskInput>(key: K, value: TaskInput[K]) => setForm((current) => ({ ...current, [key]: value }));
   const createLinkedBrief = async (suggestedTitle: string) => {
@@ -37,7 +40,10 @@ export function TaskFormModal({ task, onClose, onSaved }: Props) {
     return createTask({ title, owner: "Chưa phân công", assigneeIds: [], linkedBriefIds: [], workType: form.workType, status: "todo", startDate: date, deadline: date, startTime: form.startTime, endTime: form.endTime, reminderDate: null, reminderTime: null, reminderRepeat: "none", reminderOffsets: [], format: form.format, brief: "", briefUrl: null });
   };
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); if (savingRef.current) return; savingRef.current = true;
+    event.preventDefault();
+    if (savingRef.current) return;
+    if (form.startDate === form.deadline && form.endTime <= form.startTime) { setError("Giờ kết thúc phải sau giờ bắt đầu khi công việc diễn ra trong một ngày."); return; }
+    savingRef.current = true;
     setSaving(true); setError(null);
     try {
       const saved = task ? await updateTask(task.id, form) : await createTask(form);
@@ -45,6 +51,18 @@ export function TaskFormModal({ task, onClose, onSaved }: Props) {
       onClose();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Không thể lưu công việc.");
+    } finally { savingRef.current = false; setSaving(false); }
+  };
+  const destroy = async () => {
+    if (!task || savingRef.current || !window.confirm(`Xoá “${task.title}”? Thao tác này không thể hoàn tác.`)) return;
+    savingRef.current = true;
+    setSaving(true);
+    setError(null);
+    try {
+      await removeTask(task.id);
+      onClose();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Không thể xoá công việc.");
     } finally { savingRef.current = false; setSaving(false); }
   };
 
@@ -67,6 +85,8 @@ export function TaskFormModal({ task, onClose, onSaved }: Props) {
           <header><span>02</span><div><h3>Thời gian & trạng thái</h3></div></header>
           <div className="task-form-section-fields">
             <div className="field full task-date-field"><span>Thời gian thực hiện</span><DateRangePicker startDate={form.startDate} endDate={form.deadline} onChange={(startDate, deadline) => setForm((current) => ({ ...current, startDate, deadline, reminderDate: current.reminderDate && current.reminderDate > deadline ? deadline : current.reminderDate }))} label="Chọn khoảng ngày thực hiện"/></div>
+            <label className="field"><span>Giờ bắt đầu <small>(ngày bắt đầu)</small></span><input type="time" required step="60" value={form.startTime} disabled={saving} onChange={(event) => set("startTime", event.target.value)}/></label>
+            <label className="field"><span>Giờ kết thúc <small>(ngày kết thúc)</small></span><input type="time" required step="60" value={form.endTime} disabled={saving} onChange={(event) => set("endTime", event.target.value)}/></label>
             <label className="field">Loại công việc<select value={form.workType} onChange={(event) => set("workType", event.target.value as TaskInput["workType"])}>{Object.entries(workTypeLabels).map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
 
           </div>
@@ -81,7 +101,7 @@ export function TaskFormModal({ task, onClose, onSaved }: Props) {
         </section>
       </div>
       {error && <p className="form-error" role="alert">{error}</p>}
-      <div className="form-actions"><button type="button" className="secondary" onClick={onClose}>Huỷ</button><button className="primary" disabled={saving}>{saving ? "Đang lưu…" : task ? "Lưu thay đổi" : "Tạo công việc"}</button></div>
+      <div className="form-actions">{task && can(user, "task.delete") && <button type="button" className="danger" onClick={() => void destroy()} disabled={saving}>Xoá công việc</button>}<span/><button type="button" className="secondary" onClick={onClose}>Huỷ</button><button className="primary" disabled={saving}>{saving ? "Đang xử lý…" : task ? "Lưu thay đổi" : "Tạo công việc"}</button></div>
     </form>
   </div>;
 }

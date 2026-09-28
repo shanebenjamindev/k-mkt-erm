@@ -8,7 +8,7 @@ import { normalizeBriefImages } from "./brief-images";
 
 export type StoredMember = TeamMember & { passwordHash: string };
 export type StoredSession = { tokenHash: string; memberId: string; expiresAt: string };
-export type WorkspaceData = { tasks: Task[]; members: StoredMember[]; sessions: StoredSession[]; notifications: WorkspaceNotification[]; pushSubscriptions: PushSubscriptionRecord[]; settings: ProjectSettings };
+export type WorkspaceData = { facebookConnections?: import("./facebook-connection").StoredFacebookConnection[]; tasks: Task[]; members: StoredMember[]; sessions: StoredSession[]; notifications: WorkspaceNotification[]; pushSubscriptions: PushSubscriptionRecord[]; settings: ProjectSettings };
 
 const storePath = path.join(process.cwd(), ".data", "workspace.json");
 type Transaction = { data?: WorkspaceData; dirty: boolean };
@@ -24,6 +24,7 @@ function emptyWorkspace(): WorkspaceData {
 
 function normalizeWorkspace(data: WorkspaceData): WorkspaceData {
   return {
+    facebookConnections: data.facebookConnections ?? [],
     sessions: data.sessions ?? [],
     notifications: data.notifications ?? [],
     pushSubscriptions: data.pushSubscriptions ?? [],
